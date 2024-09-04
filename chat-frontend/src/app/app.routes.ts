@@ -4,9 +4,9 @@ import { ChatComponent } from './components/chat/chat.component';
 import { GroupComponent } from './components/group/group.component';
 
 export const appRoutes: Routes = [
-  { path: 'login', component: LoginComponent },
-  { path: 'chat', component: ChatComponent },
-  { path: 'group', component: GroupComponent },
-  { path: '', redirectTo: '/login', pathMatch: 'full' },
-  { path: '**', redirectTo: '/login' }
+  { path: 'login', component: LoginComponent }, // Login page
+  { path: 'chat', component: ChatComponent },   // Chat page
+  { path: 'group', component: GroupComponent }, // Group page
+  { path: '', redirectTo: '/login', pathMatch: 'full' }, // Default redirection to login
+  { path: '**', redirectTo: '/login' } // Wildcard for unknown paths
 ];
