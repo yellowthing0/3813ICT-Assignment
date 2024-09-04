@@ -1,10 +1,10 @@
 <div class="group-container">
-  <h2>Groups</h2>
+  <h2>Welcome, {{ user?.username }}</h2>
+
+  <h3>Available Groups</h3>
   <ul>
-    <li>Group 1</li>
-    <li>Group 2</li>
-    <li>Group 3</li>
-    <li>Group 4</li>
-    <li>Group 5</li>
+    <li *ngFor="let group of availableGroups">{{ group }}</li>
   </ul>
+
+  <p *ngIf="!availableGroups.length">You have no available groups.</p>
 </div>

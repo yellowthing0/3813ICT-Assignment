@@ -17,14 +17,13 @@ export class LoginComponent {
   errorMessage: string = '';
 
   constructor(private router: Router, private http: HttpClient) {}  // Inject HttpClient
-
   login() {
     const loginPayload = { username: this.username, password: this.password };
 
-    // Use the backend's URL directly (e.g., http://localhost:5000/login)
-    const backendUrl = 'http://localhost:5000/login';  // Replace this with your backend URL if it's different
+    console.log('Sending login request with payload:', loginPayload);  // Log the payload
 
-    console.log('Sending login request with payload:', loginPayload);
+    // Use the backend's URL directly
+    const backendUrl = 'http://localhost:5000/login';
 
     // Send the request to the backend
     this.http.post<{ success: boolean, user: any }>(backendUrl, loginPayload)
@@ -44,4 +43,6 @@ export class LoginComponent {
         }
       });
   }
+
+
 }
