@@ -1,37 +1,10 @@
 <div class="group-container">
   <h2>Groups</h2>
   <ul>
-    <li *ngFor="let group of visibleGroups">
-      <h3>{{ group.name }}</h3>
-      <p>Members:</p>
-      <ul>
-        <li *ngFor="let member of group.members">
-          {{ member.username }}
-          <!-- Only allow Group Admins and Super Admins to remove members -->
-          <button *ngIf="canManageUsers(group) && currentUser?.id !== member.id" (click)="removeUserFromGroup(group, member)">
-            Remove
-          </button>
-        </li>
-      </ul>
-
-      <!-- Leave group button for current user -->
-      <button (click)="leaveGroup(group)">Leave Group</button>
-
-      <!-- Admin options to add users -->
-      <div *ngIf="canManageUsers(group)">
-        <label>Add user to {{ group.name }}:</label>
-        <select [(ngModel)]="selectedUser" name="selectedUser">
-          <option *ngFor="let user of users" [ngValue]="user">{{ user.username }}</option>
-        </select>
-        <button (click)="addUserToGroup(group, selectedUser)">Add User</button>
-      </div>
-    </li>
+    <li>Group 1</li>
+    <li>Group 2</li>
+    <li>Group 3</li>
+    <li>Group 4</li>
+    <li>Group 5</li>
   </ul>
-
-  <!-- Group Admin and Super Admin can create groups -->
-  <div *ngIf="currentUser && (currentUser.roles.includes('Group Admin') || currentUser.roles.includes('Super Admin'))">
-    <h3>Create Group</h3>
-    <input #newGroupName type="text" placeholder="Group name">
-    <button (click)="createGroup(newGroupName.value)">Create Group</button>
-  </div>
 </div>

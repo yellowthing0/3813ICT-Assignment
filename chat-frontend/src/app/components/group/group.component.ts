@@ -22,7 +22,7 @@ interface Group {
   standalone: true,
   templateUrl: './group.component.html',
   styleUrls: ['./group.component.scss'],
-  imports: [CommonModule, FormsModule] // Add FormsModule here
+  imports: [CommonModule, FormsModule]
 })
 export class GroupComponent {
   currentUser: User | null = null;
@@ -78,15 +78,13 @@ export class GroupComponent {
   ];
 
   constructor(private router: Router) {
-    this.currentUser = this.users.find(user => user.username === 'superadmin') || null; // Simulate login as 'superadmin'
-    this.populateGroups(); // Populate groups based on user info
+    // Simulate login
+    this.currentUser = this.users.find(user => user.username === 'user1') || null;
+    this.populateGroups();
   }
 
   populateGroups() {
-    // Clear previous members
     this.allGroups.forEach(group => (group.members = []));
-
-    // Populate group members based on predefined users
     this.users.forEach(user => {
       user.groups.forEach(groupName => {
         const group = this.allGroups.find(g => g.name === groupName);
@@ -100,30 +98,36 @@ export class GroupComponent {
   get visibleGroups(): Group[] {
     if (!this.currentUser) return [];
     if (this.currentUser.roles.includes('Super Admin')) {
-      return this.allGroups; // Super Admin can see all groups
+      return this.allGroups; // Super Admin sees all groups
     }
-    // Regular users and group admins can only see their groups
     return this.allGroups.filter(group =>
       group.members.some(member => member.id === this.currentUser?.id)
     );
   }
 
+  // Check if the current user can manage users in this group (Admins only)
   canManageUsers(group: Group): boolean {
     if (!this.currentUser) return false;
-    // Super Admin can manage all groups, Group Admin can manage their own groups
     return (
       this.currentUser.roles.includes('Super Admin') ||
       (this.currentUser.roles.includes('Group Admin') && this.currentUser.groups.includes(group.name))
     );
   }
 
+  // Check if the current user is a regular user
+  isRegularUser(): boolean {
+    return this.currentUser?.roles.includes('User') || false;
+  }
+
+  // Leave group functionality for regular users
   leaveGroup(group: Group) {
-    if (!this.currentUser) return;
+    if (!this.currentUser || !this.isRegularUser()) return; // Only users can leave groups
 
     group.members = group.members.filter(member => member.id !== this.currentUser?.id);
     this.currentUser.groups = this.currentUser.groups.filter(g => g !== group.name);
   }
 
+  // Admins can add users to their groups
   addUserToGroup(group: Group, user: User | null) {
     if (this.canManageUsers(group) && user && !group.members.includes(user)) {
       group.members.push(user);
@@ -131,6 +135,7 @@ export class GroupComponent {
     }
   }
 
+  // Admins can remove users from their groups
   removeUserFromGroup(group: Group, user: User) {
     if (this.canManageUsers(group) && user) {
       group.members = group.members.filter(member => member.id !== user.id);
@@ -138,6 +143,7 @@ export class GroupComponent {
     }
   }
 
+  // Admins can create groups
   createGroup(groupName: string) {
     if (this.currentUser && (this.currentUser.roles.includes('Group Admin') || this.currentUser.roles.includes('Super Admin'))) {
       const newGroup = { name: groupName, members: [] };
