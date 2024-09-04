@@ -1,0 +1,21 @@
+.group-container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 1rem;
+  background: #eaeaea;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+  cursor: pointer;
+}
+
+li:hover {
+  background-color: #ddd;
+}

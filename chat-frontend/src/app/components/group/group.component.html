@@ -1,0 +1,8 @@
+<div class="group-container">
+  <h2>Available Groups</h2>
+  <ul>
+    <li *ngFor="let group of groups" (click)="selectGroup(group)">
+      {{ group.name }}
+    </li>
+  </ul>
+</div>
