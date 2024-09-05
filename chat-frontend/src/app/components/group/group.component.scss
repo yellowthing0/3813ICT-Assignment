@@ -1,21 +1,36 @@
 .group-container {
-  max-width: 500px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 1rem;
-  background: #eaeaea;
+  background: #f0f0f0;
+}
+
+.group-list {
+  display: flex;
+  justify-content: space-between;
+}
+
+.group-selection {
+  flex: 1;
+  padding-right: 1rem;
+}
+
+.users-panel {
+  flex: 1;
+  padding-left: 1rem;
+  border-left: 1px solid #ccc;
 }
 
 ul {
-  list-style-type: none;
+  list-style: none;
   padding: 0;
 }
 
 li {
-  padding: 10px;
-  border-bottom: 1px solid #ccc;
+  padding: 0.5rem;
   cursor: pointer;
 }
 
-li:hover {
-  background-color: #ddd;
+li.selected {
+  background-color: #d0d0d0;
 }

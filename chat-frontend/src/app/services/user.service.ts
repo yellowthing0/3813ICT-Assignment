@@ -8,7 +8,7 @@ import { catchError } from 'rxjs/operators';
 })
 export class UserService {
   private user: any = null;
-  private apiUrl = 'http://localhost:5000';  // Update this to point to the correct backend
+  private apiUrl = 'http://localhost:5000';  // Correct backend URL
 
   constructor(private http: HttpClient) {}
 
@@ -20,7 +20,6 @@ export class UserService {
     return this.user;
   }
 
-  // Login using POST to the correct backend URL
   login(username: string, password: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/login`, { username, password }).pipe(
       catchError(error => {

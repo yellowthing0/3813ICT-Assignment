@@ -15,6 +15,12 @@ const users = [
     groups: ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5']
   },
   {
+    username: 'groupadmin',
+    password: 'groupadminpass',
+    roles: ['Admin'],
+    groups: ['Group 4', 'Group 5']
+  },
+  {
     username: 'user1',
     password: 'user1pass',
     roles: ['User'],
@@ -68,12 +74,63 @@ app.post('/login', (req, res) => {
 
 // Fetch all groups (Admin route)
 app.get('/api/groups', (req, res) => {
-  // Assuming only admins can call this
+  console.log('Received request for all groups');  // Add this log
   res.json({
     success: true,
     groups: ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5']
   });
 });
+
+
+
+// Invite a user to a group (Group Admin route)
+app.post('/api/groups/:group/invite', (req, res) => {
+  const { group } = req.params;
+  const { invitedUsername, invitingUsername } = req.body;
+
+  const invitingUser = users.find(u => u.username === invitingUsername);
+  const invitedUser = users.find(u => u.username === invitedUsername);
+
+  if (invitingUser && invitingUser.roles.includes('Admin') && invitedUser) {
+    // Add the invited user to the group
+    invitedUser.groups.push(group);
+    return res.json({
+      success: true,
+      message: `${invitedUsername} has been added to ${group}`,
+      user: invitedUser
+    });
+  } else {
+    return res.status(403).json({
+      success: false,
+      message: 'You are not authorized to invite users or the user does not exist'
+    });
+  }
+});
+
+// Remove a user from a group (Group Admin route)
+app.post('/api/groups/:group/remove', (req, res) => {
+  const { group } = req.params;
+  const { removedUsername, removingUsername } = req.body;
+
+  const removingUser = users.find(u => u.username === removingUsername);
+  const removedUser = users.find(u => u.username === removedUsername);
+
+  if (removingUser && removingUser.roles.includes('Admin') && removedUser) {
+    // Remove the user from the group
+    removedUser.groups = removedUser.groups.filter(g => g !== group);
+    return res.json({
+      success: true,
+      message: `${removedUsername} has been removed from ${group}`,
+      user: removedUser
+    });
+  } else {
+    return res.status(403).json({
+      success: false,
+      message: 'You are not authorized to remove users or the user does not exist'
+    });
+  }
+});
+
 
 // Fetch users by group
 app.get('/api/groups/:group/users', (req, res) => {
