@@ -1,48 +1,46 @@
 import { Component } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';  // Import HttpClient
+import { UserService } from '../../services/user.service';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';  // Import CommonModule for ngIf
-
 @Component({
   selector: 'app-login',
   standalone: true,
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
-  imports: [FormsModule, CommonModule]  // No need for HttpClientModule in standalone component
+  imports: [CommonModule, FormsModule],
 })
 export class LoginComponent {
   username: string = '';
   password: string = '';
   errorMessage: string = '';
 
-  constructor(private router: Router, private http: HttpClient) {}  // Inject HttpClient
+  constructor(private router: Router, private userService: UserService) {}
+
+  // Handle login
   login() {
-    const loginPayload = { username: this.username, password: this.password };
+    console.log('Login attempt with:', this.username, this.password);
 
-    console.log('Sending login request with payload:', loginPayload);  // Log the payload
-
-    // Use the backend's URL directly
-    const backendUrl = 'http://localhost:5000/login';
-
-    // Send the request to the backend
-    this.http.post<{ success: boolean, user: any }>(backendUrl, loginPayload)
-      .subscribe({
+    if (this.username.trim() && this.password.trim()) {
+      // Call the login API via UserService
+      this.userService.login(this.username, this.password).subscribe({
         next: (response) => {
-          console.log('Login response:', response);
+          console.log('Login successful:', response);
 
-          if (response.success) {
-            this.router.navigate(['/groups'], { state: { user: response.user } });
-          } else {
-            this.errorMessage = 'Invalid username or password';
-          }
+          // If login is successful, store the user data
+          this.userService.setUser(response.user);
+
+          // Navigate to the groups page
+          this.router.navigate(['/group']);
         },
         error: (err) => {
-          console.error('Login request error:', err);
-          this.errorMessage = 'Login failed. Please check your credentials or try again later.';
-        }
+          console.error('Login error:', err);
+          this.errorMessage = 'Invalid username or password. Please try again.';
+        },
       });
+    } else {
+      this.errorMessage = 'Both username and password are required.';
+      console.log('Login failed: Missing username or password');
+    }
   }
-
-
 }

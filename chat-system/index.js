@@ -25,7 +25,13 @@ const users = [
     password: 'user2pass',
     roles: ['User'],
     groups: ['Group 3', 'Group 4']
-  }
+  },
+  {
+    username: 'user3',
+    password: 'user3pass',
+    roles: ['User'],
+    groups: ['Group 1', 'Group 3']
+  },
 ];
 
 // Login route
@@ -59,6 +65,16 @@ app.post('/login', (req, res) => {
     });
   }
 });
+
+// Fetch all groups (Admin route)
+app.get('/api/groups', (req, res) => {
+  // Assuming only admins can call this
+  res.json({
+    success: true,
+    groups: ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5']
+  });
+});
+
 
 // Start the server
 const PORT = process.env.PORT || 5000;

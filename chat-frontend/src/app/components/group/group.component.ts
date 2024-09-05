@@ -1,6 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
+import { Location } from '@angular/common';  // Import Location for backward navigation
+import { GroupService } from '../../services/group.service';  // Make sure to use the service
+import { UserService } from '../../services/user.service';
 
 @Component({
   selector: 'app-group',
@@ -9,37 +12,48 @@ import { Router, ActivatedRoute } from '@angular/router';
   styleUrls: ['./group.component.scss'],
   imports: [CommonModule]
 })
-export class GroupComponent {
+export class GroupComponent implements OnInit {
   user: any = null;
   availableGroups: string[] = [];
-  selectedGroup: string | null = null;  // To store the selected group
-  channels: string[] = [];  // To store the channels for the selected group
+  selectedGroup: string | null = null;
+  channels: string[] = [];
 
-  constructor(private route: ActivatedRoute, private router: Router) {
-    const navigation = this.router.getCurrentNavigation();
-    if (navigation?.extras?.state?.['user']) {
-      this.user = navigation.extras.state['user'];
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private location: Location,
+    private groupService: GroupService,  // Inject the group service
+    private userService: UserService
+  ) {}
+
+  ngOnInit() {
+    this.user = this.userService.getUser();
+    if (this.user) {
       this.setupGroupsForUser();
     } else {
-      console.error('No user data found in navigation state');
+      console.error('No user data found');
     }
   }
 
-  // Set available groups based on user roles or group access
   setupGroupsForUser() {
     if (this.user?.roles.includes('Admin')) {
-      this.availableGroups = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5'];
+      // Fetch all groups from the API for Admins
+      this.groupService.getAllGroups().subscribe({
+        next: (response) => {
+          this.availableGroups = response.groups;
+        },
+        error: (error) => {
+          console.error('Error fetching all groups', error);
+        }
+      });
     } else {
-      this.availableGroups = this.user.groups;  // Assuming user.groups is an array of group names
+      // Non-admin users only see their own groups
+      this.availableGroups = this.user.groups;
     }
   }
 
-  // Method to load channels when a group is selected
   selectGroup(group: string) {
     this.selectedGroup = group;
-
-    // For demonstration purposes, we'll hardcode the channels, but in a real application,
-    // you would likely fetch this data from an API based on the selected group.
     if (group === 'Group 1') {
       this.channels = ['Channel 1', 'Channel 2', 'Channel 3'];
     } else if (group === 'Group 2') {
@@ -49,10 +63,11 @@ export class GroupComponent {
     }
   }
 
-  // Method to handle channel selection
   selectChannel(channel: string) {
-    console.log(`Selected channel: ${channel} in group: ${this.selectedGroup}`);
-    // Navigate to the chat component with the selected channel
     this.router.navigate(['/chat'], { state: { group: this.selectedGroup, channel } });
+  }
+
+  goBack() {
+    this.location.back();  // This will navigate to the previous page in the browser history
   }
 }

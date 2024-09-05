@@ -9,25 +9,7 @@
     <input type="text" [(ngModel)]="messageText" name="messageText" placeholder="Type your message" />
     <button type="submit">Send</button>
   </form>
-</div>
 
-<style>
-  .chat-container {
-    border: 1px solid #ccc;
-    padding: 1rem;
-  }
-  .messages {
-    border: 1px solid #eee;
-    padding: 0.5rem;
-    margin-bottom: 1rem;
-    max-height: 200px;
-    overflow-y: auto;
-  }
-  form {
-    display: flex;
-  }
-  input {
-    flex: 1;
-    margin-right: 0.5rem;
-  }
-</style>
+  <!-- Back button to go to the previous page -->
+  <button (click)="goBack()">Go Back</button>
+</div>
