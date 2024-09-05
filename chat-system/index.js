@@ -10,7 +10,7 @@ const users = [
   {
     username: 'superadmin',
     password: 'superadminpass',
-    roles: ['Admin'],
+    roles: ['Super Admin'],
     groups: ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5']
   },
   {
@@ -88,16 +88,14 @@ app.post('/api/groups', (req, res) => {
 // Delete a group (Admin route)
 app.delete('/api/groups/:groupName', (req, res) => {
   const { groupName } = req.params;
-  const { username } = req.query;  // Get the username from the query params
+  const { username } = req.query;
 
   const user = users.find(u => u.username === username);
 
   if (user && user.roles.includes('Admin')) {
     if (groups.includes(groupName)) {
-      // Remove group from groups array
       groups = groups.filter(group => group !== groupName);
 
-      // Remove the group from all users
       users.forEach(user => {
         user.groups = user.groups.filter(group => group !== groupName);
       });
@@ -121,37 +119,69 @@ app.delete('/api/groups/:groupName', (req, res) => {
   }
 });
 
+// Promote or demote a user (Super Admin route)
+app.post('/api/users/:username/role', (req, res) => {
+  const { username } = req.params;
+  const { action, currentUser } = req.body;
 
+  const superAdmin = users.find(u => u.username === currentUser);
 
-// Invite a user to a group (Admin route)
-app.post('/api/groups/:group/invite', (req, res) => {
-  const { group } = req.params;
-  const { invitedUsername, invitingUsername } = req.body;
+  if (superAdmin && superAdmin.roles.includes('Super Admin')) {
+    const userToUpdate = users.find(u => u.username === username);
 
-  const invitingUser = users.find(u => u.username === invitingUsername);
-  const invitedUser = users.find(u => u.username === invitedUsername);
-
-  if (invitingUser && invitingUser.roles.includes('Admin') && invitedUser) {
-    invitedUser.groups.push(group);
-    res.json({ success: true, message: `${invitedUsername} has been added to ${group}`, user: invitedUser });
+    if (userToUpdate) {
+      if (action === 'promote') {
+        if (!userToUpdate.roles.includes('Admin')) {
+          userToUpdate.roles.push('Admin');
+        }
+      } else if (action === 'demote') {
+        userToUpdate.roles = userToUpdate.roles.filter(role => role !== 'Admin');
+      }
+      res.json({ success: true, user: userToUpdate });
+    } else {
+      res.status(404).json({ success: false, message: 'User not found.' });
+    }
   } else {
-    res.status(403).json({ success: false, message: 'You are not authorized to invite users or the user does not exist' });
+    res.status(403).json({ success: false, message: 'You are not authorized to promote/demote users.' });
   }
 });
 
-// Remove a user from a group (Admin route)
-app.post('/api/groups/:group/remove', (req, res) => {
-  const { group } = req.params;
-  const { removedUsername, removingUsername } = req.body;
+// Create a new user (Super Admin route)
+app.post('/api/users', (req, res) => {
+  const { newUser, currentUser } = req.body;
 
-  const removingUser = users.find(u => u.username === removingUsername);
-  const removedUser = users.find(u => u.username === removedUsername);
+  const superAdmin = users.find(u => u.username === currentUser);
 
-  if (removingUser && removingUser.roles.includes('Admin') && removedUser) {
-    removedUser.groups = removedUser.groups.filter(g => g !== group);
-    res.json({ success: true, message: `${removedUsername} has been removed from ${group}`, user: removedUser });
+  if (superAdmin && superAdmin.roles.includes('Super Admin')) {
+    if (!users.some(user => user.username === newUser.username)) {
+      users.push(newUser);
+      res.json({ success: true, message: 'User created successfully', users });
+    } else {
+      res.status(400).json({ success: false, message: 'User already exists.' });
+    }
   } else {
-    res.status(403).json({ success: false, message: 'You are not authorized to remove users or the user does not exist' });
+    res.status(403).json({ success: false, message: 'You are not authorized to create users.' });
+  }
+});
+
+// Delete a user (Super Admin route)
+app.delete('/api/users/:username', (req, res) => {
+  const { username } = req.params;
+  const { currentUser } = req.body;
+
+  const superAdmin = users.find(u => u.username === currentUser);
+
+  if (superAdmin && superAdmin.roles.includes('Super Admin')) {
+    const userIndex = users.findIndex(u => u.username === username);
+
+    if (userIndex !== -1) {
+      users.splice(userIndex, 1);
+      res.json({ success: true, message: 'User deleted successfully', users });
+    } else {
+      res.status(404).json({ success: false, message: 'User not found.' });
+    }
+  } else {
+    res.status(403).json({ success: false, message: 'You are not authorized to delete users.' });
   }
 });
 

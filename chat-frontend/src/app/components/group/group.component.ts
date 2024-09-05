@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 
 interface User {
   username: string;
-  roles: string[];  // Ensure roles is an array of strings
+  roles: string[];
   groups: string[];
 }
 
@@ -21,13 +21,20 @@ interface User {
 })
 export class GroupComponent implements OnInit {
   user: User | null = null;
-  isAdmin: boolean = false;  // New flag for Admin check
+  isAdmin: boolean = false;
+  isSuperAdmin: boolean = false;  // New flag for Super Admin check
   availableGroups: string[] = [];
   selectedGroup: string | null = null;
   channels: string[] = [];
   usersInGroup: string[] = [];
   newGroupName: string = '';
   newUsername: string = '';
+  newUser = {
+    username: '',
+    password: '',
+    roles: ['User'],
+    groups: []  // Ensure 'groups' is initialized as an empty array
+  };
 
   constructor(
     private route: ActivatedRoute,
@@ -41,8 +48,8 @@ export class GroupComponent implements OnInit {
     this.user = this.userService.getUser();
 
     if (this.user) {
-      // Check if the user has the 'Admin' role
       this.isAdmin = this.user.roles.includes('Admin');
+      this.isSuperAdmin = this.user.roles.includes('Super Admin');  // Check for Super Admin
       this.setupGroupsForUser();
     } else {
       console.error('No user data found');
@@ -50,8 +57,8 @@ export class GroupComponent implements OnInit {
   }
 
   setupGroupsForUser() {
-    if (this.isAdmin) {
-      // Fetch all groups for Admins
+    if (this.isSuperAdmin) {
+      // Super Admin sees all groups
       this.groupService.getAllGroups().subscribe({
         next: (response) => {
           this.availableGroups = response.groups;
@@ -60,9 +67,55 @@ export class GroupComponent implements OnInit {
           console.error('Error fetching all groups', error);
         }
       });
-    } else {
-      // Non-admin users only see their own groups
+    } else if (this.isAdmin) {
+      // Group Admin sees only their groups
       this.availableGroups = this.user?.groups || [];
+    } else {
+      // Regular user sees only their groups
+      this.availableGroups = this.user?.groups || [];
+    }
+  }
+
+  // Promote or demote a user (Super Admin)
+  changeUserRole(username: string, action: 'promote' | 'demote') {
+    if (this.isSuperAdmin) {
+      this.userService.changeUserRole(username, action).subscribe({
+        next: (response) => {
+          console.log(`${username} has been ${action === 'promote' ? 'promoted to' : 'demoted from'} admin.`);
+        },
+        error: (error) => {
+          console.error(`Error ${action}ing user:`, error);
+        }
+      });
+    }
+  }
+
+  // Create a new user (Super Admin)
+  createUser() {
+    if (this.isSuperAdmin && this.newUser.username && this.newUser.password) {
+      this.userService.createUser(this.newUser).subscribe({
+        next: (response) => {
+          console.log('User created successfully.');
+          this.newUser = { username: '', password: '', roles: ['User'], groups: [] };  // Reset fields after user creation
+        },
+        error: (error) => {
+          console.error('Error creating user:', error);
+        }
+      });
+    }
+  }
+
+  // Delete a user (Super Admin)
+  deleteUser(username: string) {
+    if (this.isSuperAdmin) {
+      this.userService.deleteUser(username).subscribe({
+        next: (response) => {
+          console.log(`User ${username} deleted successfully.`);
+        },
+        error: (error) => {
+          console.error('Error deleting user:', error);
+        }
+      });
     }
   }
 
@@ -86,7 +139,7 @@ export class GroupComponent implements OnInit {
           this.newGroupName = '';  // Clear input after creating the group
         },
         error: (error) => {
-          console.error('Error creating group', error);
+          console.error('Error creating group:', error);
         }
       });
     }
@@ -100,12 +153,11 @@ export class GroupComponent implements OnInit {
           this.selectedGroup = null;  // Clear selection after deletion
         },
         error: (error) => {
-          console.error('Error deleting group', error);
+          console.error('Error deleting group:', error);
         }
       });
     }
   }
-
 
   inviteUser() {
     if (this.selectedGroup && this.newUsername.trim() && this.user?.username) {

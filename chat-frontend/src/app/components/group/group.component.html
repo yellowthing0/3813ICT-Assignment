@@ -40,6 +40,9 @@
         <li *ngFor="let user of usersInGroup">
           {{ user }}
           <button *ngIf="isAdmin" (click)="removeUser(user)">Remove</button>
+          <button *ngIf="isSuperAdmin" (click)="changeUserRole(user, 'promote')">Promote to Admin</button>
+          <button *ngIf="isSuperAdmin" (click)="changeUserRole(user, 'demote')">Demote from Admin</button>
+          <button *ngIf="isSuperAdmin" (click)="deleteUser(user)">Delete User</button>
         </li>
       </ul>
 
@@ -47,6 +50,13 @@
       <div *ngIf="isAdmin">
         <input type="text" [(ngModel)]="newUsername" placeholder="Username" />
         <button (click)="inviteUser()">Add User</button>
+      </div>
+
+      <!-- Create User (Super Admin only) -->
+      <div *ngIf="isSuperAdmin">
+        <input type="text" [(ngModel)]="newUser.username" placeholder="Username" />
+        <input type="password" [(ngModel)]="newUser.password" placeholder="Password" />
+        <button (click)="createUser()">Create User</button>
       </div>
     </div>
   </div>

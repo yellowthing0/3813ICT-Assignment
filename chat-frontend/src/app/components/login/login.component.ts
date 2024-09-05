@@ -11,14 +11,13 @@ import { FormsModule } from '@angular/forms';
   styleUrls: ['./login.component.scss'],
   imports: [CommonModule, FormsModule],
 })
-export class LoginComponent {
+export class LoginComponent {  // Ensure `export` is present here
   username: string = '';
   password: string = '';
   errorMessage: string = '';
 
   constructor(private router: Router, private userService: UserService) {}
 
-  // Handle login
   login() {
     if (this.username.trim() && this.password.trim()) {
       this.userService.login(this.username, this.password).subscribe({
@@ -30,7 +29,7 @@ export class LoginComponent {
             this.errorMessage = 'Invalid response format.';
           }
         },
-        error: (err) => {
+        error: () => {
           this.errorMessage = 'Invalid username or password.';
         }
       });
