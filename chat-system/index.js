@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());  // Enable CORS
 app.use(bodyParser.json());  // Parse incoming JSON requests
 
-// In-memory user database (for testing)
+// In-memory user and group database (for testing)
 const users = [
   {
     username: 'superadmin',
@@ -40,18 +40,17 @@ const users = [
   },
 ];
 
+let groups = ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5'];
+
 // Login route
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
   
-  // Log the incoming request payload for debugging
   console.log('Login attempt:', req.body);
 
-  // Check if user exists
   const user = users.find(u => u.username === username && u.password === password);
 
   if (user) {
-    // Respond with the user data if login is successful
     return res.json({
       success: true,
       user: {
@@ -61,10 +60,7 @@ app.post('/login', (req, res) => {
       }
     });
   } else {
-    // Log failed login attempt
     console.error('Invalid login attempt:', req.body);
-
-    // Respond with 401 Unauthorized if credentials are invalid
     return res.status(401).json({
       success: false,
       message: 'Invalid username or password'
@@ -74,14 +70,75 @@ app.post('/login', (req, res) => {
 
 // Fetch all groups (Admin route)
 app.get('/api/groups', (req, res) => {
-  console.log('Received request for all groups');  // Add this log
   res.json({
     success: true,
-    groups: ['Group 1', 'Group 2', 'Group 3', 'Group 4', 'Group 5']
+    groups
   });
 });
 
+// Create a new group (Admin route)
+app.post('/api/groups', (req, res) => {
+  const { groupName, username } = req.body;
 
+  const user = users.find(u => u.username === username);
+
+  if (user && user.roles.includes('Admin')) {
+    if (!groups.includes(groupName)) {
+      groups.push(groupName);
+      return res.json({
+        success: true,
+        message: `Group ${groupName} created successfully.`,
+        groups
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: `Group ${groupName} already exists.`
+      });
+    }
+  } else {
+    return res.status(403).json({
+      success: false,
+      message: 'You are not authorized to create groups.'
+    });
+  }
+});
+
+// Delete a group (Admin route)
+app.delete('/api/groups/:groupName', (req, res) => {
+  const { groupName } = req.params;
+  const { username } = req.body;
+
+  const user = users.find(u => u.username === username);
+
+  if (user && user.roles.includes('Admin')) {
+    if (groups.includes(groupName)) {
+      // Remove group from groups array
+      groups = groups.filter(group => group !== groupName);
+
+      // Remove the group from all users
+      users.forEach(user => {
+        user.groups = user.groups.filter(group => group !== groupName);
+      });
+
+      return res.json({
+        success: true,
+        message: `Group ${groupName} deleted successfully.`,
+        groups
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: `Group ${groupName} not found.`
+      });
+    }
+  } else {
+    return res.status(403).json({
+      success: false,
+      message: 'You are not authorized to delete groups.'
+    });
+  }
+});
 
 // Invite a user to a group (Group Admin route)
 app.post('/api/groups/:group/invite', (req, res) => {
@@ -92,7 +149,6 @@ app.post('/api/groups/:group/invite', (req, res) => {
   const invitedUser = users.find(u => u.username === invitedUsername);
 
   if (invitingUser && invitingUser.roles.includes('Admin') && invitedUser) {
-    // Add the invited user to the group
     invitedUser.groups.push(group);
     return res.json({
       success: true,
@@ -116,7 +172,6 @@ app.post('/api/groups/:group/remove', (req, res) => {
   const removedUser = users.find(u => u.username === removedUsername);
 
   if (removingUser && removingUser.roles.includes('Admin') && removedUser) {
-    // Remove the user from the group
     removedUser.groups = removedUser.groups.filter(g => g !== group);
     return res.json({
       success: true,
@@ -131,31 +186,24 @@ app.post('/api/groups/:group/remove', (req, res) => {
   }
 });
 
-
 // Fetch users by group
 app.get('/api/groups/:group/users', (req, res) => {
-  const groupName = decodeURIComponent(req.params.group);  // Decode the group name
+  const groupName = decodeURIComponent(req.params.group);
 
-  // Filter users who belong to the requested group
   const groupUsers = users.filter(user => user.groups.includes(groupName));
 
   if (groupUsers.length > 0) {
-    // Return the list of users in that group
     res.json({
       success: true,
-      users: groupUsers.map(user => user.username)  // Return only usernames
+      users: groupUsers.map(user => user.username)
     });
   } else {
-    // Return an error if no users are found
     res.status(404).json({
       success: false,
       message: 'No users found for this group'
     });
   }
 });
-
-
-
 
 // Start the server
 const PORT = process.env.PORT || 5000;

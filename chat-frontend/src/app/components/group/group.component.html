@@ -11,7 +11,6 @@
       </ul>
       <p *ngIf="!availableGroups.length">You have no available groups.</p>
 
-      <!-- Display channels if a group is selected -->
       <div *ngIf="selectedGroup">
         <h3>Channels for {{ selectedGroup }}</h3>
         <ul>
@@ -22,15 +21,28 @@
       </div>
     </div>
 
-    <!-- Users panel on the right side -->
     <div class="users-panel" *ngIf="selectedGroup">
       <h3>Users in {{ selectedGroup }}</h3>
       <ul>
         <li *ngFor="let user of usersInGroup">{{ user }}</li>
       </ul>
+
+      <!-- Admin controls -->
+      <div *ngIf="user?.roles?.includes('Admin')">
+        <input type="text" [(ngModel)]="newUsername" placeholder="Username to add" />
+        <button (click)="addUserToGroup()">Add User</button>
+
+        <ul>
+          <li *ngFor="let user of usersInGroup">
+            {{ user }}
+            <button (click)="removeUserFromGroup(user)">Remove User</button>
+          </li>
+        </ul>
+
+        <button (click)="deleteGroup()">Delete Group</button>
+      </div>
     </div>
   </div>
 
-  <!-- Back button to go to the previous page -->
   <button (click)="goBack()">Go Back</button>
 </div>

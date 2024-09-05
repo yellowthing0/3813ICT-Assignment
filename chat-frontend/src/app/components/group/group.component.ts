@@ -1,24 +1,26 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
-import { Location } from '@angular/common';  // Import Location for backward navigation
-import { GroupService } from '../../services/group.service';  // Make sure to use the service
+import { Location } from '@angular/common';
+import { GroupService } from '../../services/group.service';
 import { UserService } from '../../services/user.service';
-import { HttpClient } from '@angular/common/http'; // Import HttpClient
+import { FormsModule } from '@angular/forms';  // Add FormsModule
 
 @Component({
   selector: 'app-group',
   standalone: true,
   templateUrl: './group.component.html',
   styleUrls: ['./group.component.scss'],
-  imports: [CommonModule]
+  imports: [CommonModule, FormsModule]  // Add FormsModule here
 })
 export class GroupComponent implements OnInit {
   user: any = null;
   availableGroups: string[] = [];
   selectedGroup: string | null = null;
   channels: string[] = [];
-  usersInGroup: string[] = [];  // This stores users of the selected group
+  usersInGroup: string[] = [];
+  newGroupName: string = '';
+  newUsername: string = '';
 
   constructor(
     private route: ActivatedRoute,
@@ -39,7 +41,6 @@ export class GroupComponent implements OnInit {
 
   setupGroupsForUser() {
     if (this.user?.roles.includes('Admin')) {
-      // Fetch all groups from the API for Admins
       this.groupService.getAllGroups().subscribe({
         next: (response) => {
           this.availableGroups = response.groups;
@@ -49,7 +50,6 @@ export class GroupComponent implements OnInit {
         }
       });
     } else {
-      // Non-admin users only see their own groups
       this.availableGroups = this.user.groups;
     }
   }
@@ -57,34 +57,79 @@ export class GroupComponent implements OnInit {
   selectGroup(group: string) {
     this.selectedGroup = group;
 
-    // Fetch users for the selected group
     this.groupService.getUsersInGroup(group).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         this.usersInGroup = response.users;
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('Error fetching users for group', error);
       }
     });
 
-    // Set channels based on selected group
-    if (group === 'Group 1') {
-      this.channels = ['Channel 1', 'Channel 2', 'Channel 3'];
-    } else if (group === 'Group 2') {
-      this.channels = ['Channel A', 'Channel B', 'Channel C'];
-    } else {
-      this.channels = ['Default Channel 1', 'Default Channel 2'];
-    }
+    this.channels = ['Default Channel 1', 'Default Channel 2'];
   }
 
-  // Add the missing selectChannel method
   selectChannel(channel: string) {
-    // Navigate to the chat component and pass group and channel information
     this.router.navigate(['/chat'], { state: { group: this.selectedGroup, channel } });
   }
 
+  createGroup() {
+    if (this.newGroupName) {
+      this.groupService.createGroup(this.newGroupName, this.user.username).subscribe({
+        next: (response: any) => {
+          this.availableGroups = response.groups;
+          this.newGroupName = ''; // Clear the input after creating the group
+        },
+        error: (error: any) => {
+          console.error('Error creating group', error);
+        }
+      });
+    }
+  }
+
+  deleteGroup() {
+    if (this.selectedGroup) {
+      this.groupService.deleteGroup(this.selectedGroup, this.user.username).subscribe({
+        next: (response: any) => {
+          this.availableGroups = response.groups;
+          this.selectedGroup = null;
+        },
+        error: (error: any) => {
+          console.error('Error deleting group', error);
+        }
+      });
+    }
+  }
+
+
+  addUserToGroup() {
+    if (this.newUsername && this.selectedGroup) {
+      this.groupService.inviteUserToGroup(this.selectedGroup, this.newUsername, this.user.username).subscribe({
+        next: () => {
+          this.newUsername = '';
+          this.selectGroup(this.selectedGroup!); // Refresh the group users
+        },
+        error: (error: any) => {
+          console.error('Error adding user to group', error);
+        }
+      });
+    }
+  }
+
+  removeUserFromGroup(username: string) {
+    if (this.selectedGroup) {
+      this.groupService.removeUserFromGroup(this.selectedGroup, username, this.user.username).subscribe({
+        next: () => {
+          this.selectGroup(this.selectedGroup!); // Refresh the group users
+        },
+        error: (error: any) => {
+          console.error('Error removing user from group', error);
+        }
+      });
+    }
+  }
+
   goBack() {
-    this.location.back();  // This will navigate to the previous page in the browser history
+    this.location.back();
   }
 }
-

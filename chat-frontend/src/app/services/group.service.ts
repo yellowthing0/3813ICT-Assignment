@@ -1,7 +1,8 @@
+// group.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';  // Import `catchError` and `pipe`
+import { catchError } from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root',
@@ -21,10 +22,9 @@ export class GroupService {
     );
   }
 
-
   // Fetch users in a specific group
   getUsersInGroup(group: string): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/groups/${group}/users`).pipe(  // Correct usage of template literals and `get<any>()`
+    return this.http.get<any>(`${this.apiUrl}/groups/${group}/users`).pipe(
       catchError(error => {
         console.error('Error fetching users for group', error);
         return throwError(() => new Error('Error fetching users for group.'));
@@ -38,6 +38,16 @@ export class GroupService {
       catchError(error => {
         console.error('Error creating group', error);
         return throwError(() => new Error('Error creating group.'));
+      })
+    );
+  }
+
+  // Delete a group (Admin only)
+  deleteGroup(groupName: string, username: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/groups/${groupName}`, { body: { username } }).pipe(
+      catchError(error => {
+        console.error('Error deleting group', error);
+        return throwError(() => new Error('Error deleting group.'));
       })
     );
   }
