@@ -4,17 +4,24 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { Location } from '@angular/common';
 import { GroupService } from '../../services/group.service';
 import { UserService } from '../../services/user.service';
-import { FormsModule } from '@angular/forms';  // Add FormsModule
+import { FormsModule } from '@angular/forms';
+
+interface User {
+  username: string;
+  roles: string[];  // Ensure roles is an array of strings
+  groups: string[];
+}
 
 @Component({
   selector: 'app-group',
   standalone: true,
   templateUrl: './group.component.html',
   styleUrls: ['./group.component.scss'],
-  imports: [CommonModule, FormsModule]  // Add FormsModule here
+  imports: [CommonModule, FormsModule]
 })
 export class GroupComponent implements OnInit {
-  user: any = null;
+  user: User | null = null;
+  isAdmin: boolean = false;  // New flag for Admin check
   availableGroups: string[] = [];
   selectedGroup: string | null = null;
   channels: string[] = [];
@@ -32,7 +39,10 @@ export class GroupComponent implements OnInit {
 
   ngOnInit() {
     this.user = this.userService.getUser();
+
     if (this.user) {
+      // Check if the user has the 'Admin' role
+      this.isAdmin = this.user.roles.includes('Admin');
       this.setupGroupsForUser();
     } else {
       console.error('No user data found');
@@ -40,7 +50,8 @@ export class GroupComponent implements OnInit {
   }
 
   setupGroupsForUser() {
-    if (this.user?.roles.includes('Admin')) {
+    if (this.isAdmin) {
+      // Fetch all groups for Admins
       this.groupService.getAllGroups().subscribe({
         next: (response) => {
           this.availableGroups = response.groups;
@@ -50,37 +61,31 @@ export class GroupComponent implements OnInit {
         }
       });
     } else {
-      this.availableGroups = this.user.groups;
+      // Non-admin users only see their own groups
+      this.availableGroups = this.user?.groups || [];
     }
   }
 
   selectGroup(group: string) {
     this.selectedGroup = group;
-
     this.groupService.getUsersInGroup(group).subscribe({
-      next: (response: any) => {
+      next: (response) => {
         this.usersInGroup = response.users;
       },
-      error: (error: any) => {
+      error: (error) => {
         console.error('Error fetching users for group', error);
       }
     });
-
-    this.channels = ['Default Channel 1', 'Default Channel 2'];
-  }
-
-  selectChannel(channel: string) {
-    this.router.navigate(['/chat'], { state: { group: this.selectedGroup, channel } });
   }
 
   createGroup() {
-    if (this.newGroupName) {
+    if (this.newGroupName.trim() && this.user?.username) {
       this.groupService.createGroup(this.newGroupName, this.user.username).subscribe({
-        next: (response: any) => {
+        next: (response) => {
           this.availableGroups = response.groups;
-          this.newGroupName = ''; // Clear the input after creating the group
+          this.newGroupName = '';  // Clear input after creating the group
         },
-        error: (error: any) => {
+        error: (error) => {
           console.error('Error creating group', error);
         }
       });
@@ -88,13 +93,13 @@ export class GroupComponent implements OnInit {
   }
 
   deleteGroup() {
-    if (this.selectedGroup) {
+    if (this.selectedGroup && this.user?.username) {
       this.groupService.deleteGroup(this.selectedGroup, this.user.username).subscribe({
-        next: (response: any) => {
+        next: (response) => {
           this.availableGroups = response.groups;
-          this.selectedGroup = null;
+          this.selectedGroup = null;  // Clear selection after deletion
         },
-        error: (error: any) => {
+        error: (error) => {
           console.error('Error deleting group', error);
         }
       });
@@ -102,30 +107,36 @@ export class GroupComponent implements OnInit {
   }
 
 
-  addUserToGroup() {
-    if (this.newUsername && this.selectedGroup) {
+  inviteUser() {
+    if (this.selectedGroup && this.newUsername.trim() && this.user?.username) {
       this.groupService.inviteUserToGroup(this.selectedGroup, this.newUsername, this.user.username).subscribe({
-        next: () => {
-          this.newUsername = '';
-          this.selectGroup(this.selectedGroup!); // Refresh the group users
+        next: (response) => {
+          this.usersInGroup = response.users;
+          this.newUsername = '';  // Clear input after inviting user
         },
-        error: (error: any) => {
-          console.error('Error adding user to group', error);
+        error: (error) => {
+          console.error('Error inviting user to group', error);
         }
       });
     }
   }
 
-  removeUserFromGroup(username: string) {
-    if (this.selectedGroup) {
+  removeUser(username: string) {
+    if (this.selectedGroup && username && this.user?.username) {
       this.groupService.removeUserFromGroup(this.selectedGroup, username, this.user.username).subscribe({
-        next: () => {
-          this.selectGroup(this.selectedGroup!); // Refresh the group users
+        next: (response) => {
+          this.usersInGroup = response.users;
         },
-        error: (error: any) => {
+        error: (error) => {
           console.error('Error removing user from group', error);
         }
       });
+    }
+  }
+
+  selectChannel(channel: string) {
+    if (this.selectedGroup) {
+      this.router.navigate(['/chat'], { state: { group: this.selectedGroup, channel } });
     }
   }
 

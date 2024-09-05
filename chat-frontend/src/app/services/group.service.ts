@@ -1,8 +1,7 @@
-// group.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';  // Import `catchError` and `pipe`
 
 @Injectable({
   providedIn: 'root',
@@ -12,7 +11,7 @@ export class GroupService {
 
   constructor(private http: HttpClient) {}
 
-  // Fetch all groups
+  // Fetch all groups (for Admins)
   getAllGroups(): Observable<any> {
     return this.http.get(`${this.apiUrl}/groups`).pipe(
       catchError(error => {
@@ -24,7 +23,7 @@ export class GroupService {
 
   // Fetch users in a specific group
   getUsersInGroup(group: string): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/groups/${group}/users`).pipe(
+    return this.http.get(`${this.apiUrl}/groups/${group}/users`).pipe(
       catchError(error => {
         console.error('Error fetching users for group', error);
         return throwError(() => new Error('Error fetching users for group.'));
@@ -42,9 +41,9 @@ export class GroupService {
     );
   }
 
-  // Delete a group (Admin only)
+  // Delete a group
   deleteGroup(groupName: string, username: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/groups/${groupName}`, { body: { username } }).pipe(
+    return this.http.delete(`${this.apiUrl}/groups/${groupName}?username=${username}`).pipe(
       catchError(error => {
         console.error('Error deleting group', error);
         return throwError(() => new Error('Error deleting group.'));

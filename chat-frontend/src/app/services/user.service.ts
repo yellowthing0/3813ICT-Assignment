@@ -3,21 +3,32 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
+interface User {
+  username: string;
+  roles: string[]; // Ensure roles is an array of strings
+  groups: string[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class UserService {
-  private user: any = null;
+  private user: User | null = null;
   private apiUrl = 'http://localhost:5000';  // Correct backend URL
 
   constructor(private http: HttpClient) {}
 
-  setUser(user: any) {
-    this.user = user;
+  setUser(user: User) {
+    // Ensure user is properly typed
+    if (user && Array.isArray(user.roles)) {
+      this.user = user;
+    } else {
+      console.error('Invalid user roles format');
+    }
   }
 
-  getUser() {
-    return this.user;
+  getUser(): User | null {
+    return this.user;  // Return the typed user
   }
 
   login(username: string, password: string): Observable<any> {
