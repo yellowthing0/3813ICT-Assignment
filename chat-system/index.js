@@ -75,6 +75,30 @@ app.get('/api/groups', (req, res) => {
   });
 });
 
+// Fetch users by group
+app.get('/api/groups/:group/users', (req, res) => {
+  const groupName = decodeURIComponent(req.params.group);  // Decode the group name
+
+  // Filter users who belong to the requested group
+  const groupUsers = users.filter(user => user.groups.includes(groupName));
+
+  if (groupUsers.length > 0) {
+    // Return the list of users in that group
+    res.json({
+      success: true,
+      users: groupUsers.map(user => user.username)  // Return only usernames
+    });
+  } else {
+    // Return an error if no users are found
+    res.status(404).json({
+      success: false,
+      message: 'No users found for this group'
+    });
+  }
+});
+
+
+
 
 // Start the server
 const PORT = process.env.PORT || 5000;
