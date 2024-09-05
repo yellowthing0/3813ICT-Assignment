@@ -1,12 +1,33 @@
 <div class="chat-container">
-  <h2>Chat Room</h2>
+  <h2>Chat in {{ channel }} of {{ group }}</h2>
+
   <div class="messages">
-    <div *ngFor="let message of messages">
-      <strong>{{ message.username }}:</strong> {{ message.text }}
-    </div>
+    <p *ngFor="let message of messages">{{ message }}</p>
   </div>
+
   <form (ngSubmit)="sendMessage()">
-    <input type="text" [(ngModel)]="messageText" name="messageText" placeholder="Type a message" required>
+    <input type="text" [(ngModel)]="messageText" name="messageText" placeholder="Type your message" />
     <button type="submit">Send</button>
   </form>
 </div>
+
+<style>
+  .chat-container {
+    border: 1px solid #ccc;
+    padding: 1rem;
+  }
+  .messages {
+    border: 1px solid #eee;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  form {
+    display: flex;
+  }
+  input {
+    flex: 1;
+    margin-right: 0.5rem;
+  }
+</style>

@@ -3,8 +3,31 @@
 
   <h3>Available Groups</h3>
   <ul>
-    <li *ngFor="let group of availableGroups">{{ group }}</li>
+    <li *ngFor="let group of availableGroups" (click)="selectGroup(group)" [class.selected]="group === selectedGroup">
+      {{ group }}
+    </li>
   </ul>
 
   <p *ngIf="!availableGroups.length">You have no available groups.</p>
+
+  <!-- Display channels if a group is selected -->
+  <div *ngIf="selectedGroup">
+    <h3>Channels for {{ selectedGroup }}</h3>
+    <ul>
+      <li *ngFor="let channel of channels" (click)="selectChannel(channel)">
+        {{ channel }}
+      </li>
+    </ul>
+  </div>
 </div>
+
+<style>
+  .group-container ul li {
+    cursor: pointer;
+  }
+
+  .group-container ul li.selected {
+    font-weight: bold;
+    color: blue;
+  }
+</style>
