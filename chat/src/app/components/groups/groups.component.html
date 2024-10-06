@@ -1,1 +1,16 @@
-<p>groups works!</p>
+<div class="groups-container">
+  <h2>Your Groups</h2>
+
+  <div *ngIf="groups.length === 0">You are not a member of any groups yet.</div>
+
+  <ul *ngIf="groups.length > 0">
+    <li *ngFor="let group of groups" class="group-item">
+      <h3>{{ group.name }}</h3>
+      <p>{{ group.description }}</p>
+      <!-- Button to navigate to the group's channels -->
+      <button (click)="goToGroupChannels(group.id)" class="btn btn-primary">
+        View Channels
+      </button>
+    </li>
+  </ul>
+</div>

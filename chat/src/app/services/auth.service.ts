@@ -1,4 +1,3 @@
-// app/services/auth.service.ts
 import { Injectable } from '@angular/core';
 
 @Injectable({
@@ -7,16 +6,23 @@ import { Injectable } from '@angular/core';
 export class AuthService {
   private currentUser: any;
 
-  login(username: string, password: string) {
-    // Mock user login - replace this with real authentication
+  constructor() {}
+
+  // Simple login logic - replace with real authentication later
+  login(username: string, password: string): boolean {
     if (username === 'super' && password === '123') {
-      this.currentUser = { role: 'Super Admin' };
-    } else {
-      // Logic for other roles (Group Admin, User)
+      this.currentUser = { username, role: 'Super Admin' };
+      return true;
     }
+    return false;
   }
 
   getCurrentUser() {
     return this.currentUser;
+  }
+
+  // Check if user is logged in
+  isAuthenticated(): boolean {
+    return !!this.currentUser;
   }
 }

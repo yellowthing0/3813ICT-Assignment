@@ -1,1 +1,12 @@
-<p>channels works!</p>
+<div class="channels-container">
+  <h2>Channels in Group {{ groupId }}</h2>
+
+  <div *ngIf="channels.length === 0">No channels available for this group.</div>
+
+  <ul *ngIf="channels.length > 0">
+    <li *ngFor="let channel of channels" class="channel-item">
+      <h3>{{ channel.name }}</h3>
+      <p>{{ channel.description }}</p>
+    </li>
+  </ul>
+</div>
