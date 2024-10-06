@@ -1,8 +1,8 @@
-import { Component, OnInit, AfterViewInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, AfterViewInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SocketService } from '../../services/socket.service';
+import { SocketService } from '../../services/socket.service'; // Adjusted path
 import Peer, { MediaConnection } from 'peerjs';
 
 @Component({
@@ -29,41 +29,65 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   peerId: string = '';
   connectedPeerId: string = '';
 
-  constructor(private route: ActivatedRoute, private socketService: SocketService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private socketService: SocketService,
+    private cdr: ChangeDetectorRef // Inject ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
+    // Group ID is ready in ngOnInit
     this.groupId = +this.route.snapshot.paramMap.get('groupId')!;
     console.log('Group ID: ', this.groupId);
   }
 
   ngAfterViewInit(): void {
+    // Only after the view has rendered, initialize socket connections
     this.initializeSocket();
   }
 
   initializeSocket(): void {
-    // Listen for incoming messages and message history
+    console.log('Initializing socket...');
+
+    // Receive message history
     this.socketService.listenEvent('messageHistory').subscribe((messageHistory: string[]) => {
       console.log('Message history received: ', messageHistory);
       this.messages = messageHistory;
+      this.cdr.detectChanges(); // Ensure view is updated
     });
 
+    // Listen for incoming messages
     this.socketService.listenEvent('message').subscribe((message: string) => {
       console.log('Message received from server: ', message);
       this.messages.push(message);
+
+      // Manually trigger change detection to update the view
+      this.cdr.detectChanges();
     });
 
-    console.log('Socket connected');
+    // Connection events
+    this.socketService.listenEvent('connect').subscribe(() => {
+      console.log('Socket connected');
+    });
+    this.socketService.listenEvent('disconnect').subscribe(() => {
+      console.log('Socket disconnected');
+    });
   }
 
+  // Select the text or voice channel
   onChannelSelect(channelId: number): void {
     this.selectedChannel = channelId;
-    this.messages = [];
+    this.messages = []; // Clear messages when switching channels
+
     if (this.selectedChannel === 2) {
       this.initializePeer();
     }
+
+    // Join the selected channel
     this.socketService.emitEvent('joinChannel', this.selectedChannel);
   }
 
+  // Send a message (text chat)
   sendMessage(): void {
     if (this.newMessage.trim()) {
       this.socketService.emitEvent('message', { channel: this.selectedChannel, message: this.newMessage });
@@ -71,6 +95,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
+  // Initialize Peer.js for voice chat
   initializePeer(): void {
     console.log('Initializing Peer...');
     this.peer = new Peer();
@@ -80,10 +105,12 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       console.log(`Peer ID: ${id}`);
     });
 
+    // Answer incoming calls
     this.peer.on('call', (call) => {
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         call.answer(stream);
         this.myStream = stream;
+
         call.on('stream', (remoteStream: MediaStream) => {
           this.playAudioStream(remoteStream);
         });
@@ -91,11 +118,13 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     });
   }
 
+  // Start a voice call
   startCall(): void {
     if (this.connectedPeerId.trim()) {
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         this.myStream = stream;
         this.currentCall = this.peer.call(this.connectedPeerId, stream);
+
         this.currentCall.on('stream', (remoteStream: MediaStream) => {
           this.playAudioStream(remoteStream);
         });
@@ -103,6 +132,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
+  // Play the audio stream in the browser
   playAudioStream(stream: MediaStream): void {
     const audio = document.createElement('audio');
     audio.srcObject = stream;
@@ -110,6 +140,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     document.body.appendChild(audio);
   }
 
+  // End the current voice call
   endCall(): void {
     if (this.currentCall) {
       this.currentCall.close();
