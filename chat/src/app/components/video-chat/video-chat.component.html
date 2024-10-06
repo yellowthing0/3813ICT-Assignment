@@ -1,1 +1,17 @@
-<p>video-chat works!</p>
+<div class="voice-channel-container">
+  <h2>Voice Channel {{ channelId }} in Group {{ groupId }}</h2>
+
+  <!-- Display peer's ID -->
+  <div>
+    Your Peer ID: <strong>{{ peerId }}</strong>
+  </div>
+
+  <!-- Input to connect to another peer -->
+  <div>
+    <input [(ngModel)]="connectedPeerId" placeholder="Enter Peer ID to call" />
+    <button (click)="callPeer()" class="btn btn-primary">Call Peer</button>
+  </div>
+
+  <!-- Audio element to play the remote stream -->
+  <audio id="remoteAudio" controls></audio>
+</div>

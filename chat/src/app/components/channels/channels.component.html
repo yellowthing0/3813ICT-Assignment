@@ -7,6 +7,16 @@
     <li *ngFor="let channel of channels" class="channel-item">
       <h3>{{ channel.name }}</h3>
       <p>{{ channel.description }}</p>
+
+      <!-- Link to text channel -->
+      <button *ngIf="channel.type === 'text'" (click)="goToTextChannel(channel.id)" class="btn btn-primary">
+        Join Text Channel
+      </button>
+
+      <!-- Link to voice channel -->
+      <button *ngIf="channel.type === 'voice'" (click)="goToVoiceChannel(channel.id)" class="btn btn-secondary">
+        Join Voice Channel
+      </button>
     </li>
   </ul>
 </div>

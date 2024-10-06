@@ -9,16 +9,23 @@ const io = socketIo(server);
 // Serve static files for the Angular app
 app.use(express.static('../dist/discord-like-app'));
 
-// Socket.io setup
 io.on('connection', (socket) => {
-  console.log('User connected');
+  console.log('A user connected');
 
-  socket.on('message', (msg) => {
-    io.emit('message', msg);
+  // Listen for joinChannel event
+  socket.on('joinChannel', ({ groupId, channelId }) => {
+    console.log(`User joined group ${groupId}, channel ${channelId}`);
+    socket.join(`${groupId}-${channelId}`);
+  });
+
+  // Listen for messages in the channel
+  socket.on('message', ({ groupId, channelId, content }) => {
+    console.log(`Message received in group ${groupId}, channel ${channelId}: ${content}`);
+    io.to(`${groupId}-${channelId}`).emit('message', content);
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected');
+    console.log('A user disconnected');
   });
 });
 
