@@ -6,6 +6,7 @@
     </button>
   </li>
 </ul>
+<button (click)="goBack()">Back</button>
 
 <!-- Chat area -->
 <div *ngIf="selectedChannel">
@@ -15,7 +16,7 @@
   <div *ngIf="selectedChannel === 1" class="chat-container">
     <div class="chat-area">
       <div *ngFor="let message of messages" class="chat-message">
-        {{ message }}
+        <strong>{{ message.timestamp }}:</strong> {{ message.message }}
       </div>
     </div>
 

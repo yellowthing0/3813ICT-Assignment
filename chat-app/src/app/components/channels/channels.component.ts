@@ -2,8 +2,9 @@ import { ChangeDetectorRef, Component, OnInit, AfterViewInit } from '@angular/co
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { SocketService } from '../../services/socket.service'; // Adjusted path
+import { SocketService } from '../../services/socket.service';
 import Peer, { MediaConnection } from 'peerjs';
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-channels',
@@ -19,7 +20,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   ];
   selectedChannel?: number;
   groupId?: number;
-  messages: string[] = [];
+  messages: { message: string, timestamp: string }[] = []; // Store messages as objects
   newMessage = '';
 
   // Voice chat
@@ -29,10 +30,13 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   peerId: string = '';
   connectedPeerId: string = '';
 
+  private initializedSocket = false; // Track socket initialization to prevent multiple listeners
+
   constructor(
     private route: ActivatedRoute,
     private socketService: SocketService,
-    private cdr: ChangeDetectorRef // Inject ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private location: Location
   ) {}
 
   ngOnInit(): void {
@@ -43,23 +47,32 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     // Only after the view has rendered, initialize socket connections
-    this.initializeSocket();
+    if (!this.initializedSocket) {
+      this.initializeSocket();
+      this.initializedSocket = true; // Ensure this is called only once
+    }
   }
 
   initializeSocket(): void {
     console.log('Initializing socket...');
 
     // Receive message history
-    this.socketService.listenEvent('messageHistory').subscribe((messageHistory: string[]) => {
+    this.socketService.listenEvent('messageHistory').subscribe((messageHistory: any[]) => {
       console.log('Message history received: ', messageHistory);
-      this.messages = messageHistory;
+      this.messages = messageHistory.map((msg) => ({
+        message: msg.message,
+        timestamp: new Date(msg.timestamp).toLocaleString() // Convert to readable format
+      }));
       this.cdr.detectChanges(); // Ensure view is updated
     });
 
     // Listen for incoming messages
-    this.socketService.listenEvent('message').subscribe((message: string) => {
+    this.socketService.listenEvent('message').subscribe((message: any) => {
       console.log('Message received from server: ', message);
-      this.messages.push(message);
+      this.messages.push({
+        message: message.message,
+        timestamp: new Date(message.timestamp).toLocaleString() // Convert to readable format
+      });
 
       // Manually trigger change detection to update the view
       this.cdr.detectChanges();
@@ -83,14 +96,23 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       this.initializePeer();
     }
 
-    // Join the selected channel
-    this.socketService.emitEvent('joinChannel', this.selectedChannel);
+    // Ensure joinChannel is called only once
+    if (this.groupId && this.selectedChannel) {
+      this.socketService.emitEvent('joinChannel', {
+        groupId: this.groupId,
+        channel: this.selectedChannel
+      });
+    }
   }
 
   // Send a message (text chat)
   sendMessage(): void {
     if (this.newMessage.trim()) {
-      this.socketService.emitEvent('message', { channel: this.selectedChannel, message: this.newMessage });
+      this.socketService.emitEvent('message', {
+        groupId: this.groupId,
+        channel: this.selectedChannel,
+        message: this.newMessage
+      });
       this.newMessage = '';
     }
   }
@@ -147,5 +169,9 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       this.myStream.getTracks().forEach((track) => track.stop());
       this.currentCall = undefined;
     }
+  }
+
+  goBack(): void {
+    this.location.back(); // This takes the user to the previous page
   }
 }

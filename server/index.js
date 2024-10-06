@@ -20,14 +20,15 @@ mongoose.connect('mongodb://localhost:27017/chatApp', {
 
 // Define a message schema and model
 const messageSchema = new mongoose.Schema({
-  channel: Number,
+  groupId: Number,  // Add group ID to distinguish between different groups
+  channel: Number,  // Channel number (Text or Voice)
   message: String,
   timestamp: { type: Date, default: Date.now }
 });
 
 const Message = mongoose.model('Message', messageSchema);
 
-// In-memory message storage for channels
+// Socket.io setup for real-time messaging and channels
 const io = socketIo(server, {
   cors: {
     origin: "http://localhost:4200", // Your Angular app URL
@@ -39,8 +40,6 @@ const io = socketIo(server, {
 
 // Middleware to parse JSON bodies
 app.use(express.json());
-
-// Enable CORS for all routes
 app.use(cors());
 
 // Serve static files for the Angular app
@@ -51,25 +50,36 @@ io.on('connection', (socket) => {
   console.log('User connected: ', socket.id);
 
   // Handle joining a channel and send message history
-  socket.on('joinChannel', async (channel) => {
-    console.log(`User ${socket.id} joined channel ${channel}`);
-    socket.join(channel); // Join the specific channel
+  socket.on('joinChannel', async ({ groupId, channel }) => {
+    console.log(`User ${socket.id} joined group ${groupId}, channel ${channel}`);
+    socket.join(`${groupId}-${channel}`); // Join a room specific to the group and channel
 
     // Fetch message history from MongoDB and send to the user
-    const messages = await Message.find({ channel }).sort({ timestamp: 1 }).exec();
-    socket.emit('messageHistory', messages.map(m => m.message)); // Send the message history
+    try {
+      const messages = await Message.find({ groupId, channel }).sort({ timestamp: 1 }).exec();
+      socket.emit('messageHistory', messages.map(m => ({
+        message: m.message,
+        timestamp: m.timestamp
+      }))); // Send the message history
+    } catch (error) {
+      console.error('Error fetching message history:', error);
+    }
   });
 
-  // Handle sending a message to a specific channel
-  socket.on('message', async ({ channel, message }) => {
-    console.log(`Message received in channel ${channel}:`, message);
+  // Handle sending a message to a specific channel and group
+  socket.on('message', async ({ groupId, channel, message }) => {
+    console.log(`Message received in group ${groupId}, channel ${channel}:`, message);
 
     // Save the message to MongoDB
-    const newMessage = new Message({ channel, message });
-    await newMessage.save();
+    try {
+      const newMessage = new Message({ groupId, channel, message });
+      await newMessage.save();
 
-    // Broadcast the message to all users in the same channel
-    io.to(channel).emit('message', message);
+      // Broadcast the message to all users in the same group and channel
+      io.to(`${groupId}-${channel}`).emit('message', { message, timestamp: new Date() });
+    } catch (error) {
+      console.error('Error saving message:', error);
+    }
   });
 
   // Handle disconnect event
