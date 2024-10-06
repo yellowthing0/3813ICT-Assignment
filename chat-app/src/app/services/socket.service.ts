@@ -1,32 +1,42 @@
-// src/app/services/socket.service.ts
-import { Injectable } from '@angular/core';
-import { Socket } from 'ngx-socket-io';
+import { ApplicationRef, Injectable, inject } from '@angular/core';
+import { Observable, first } from 'rxjs';
+import { io, Socket } from 'socket.io-client';
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: 'root'
 })
-export class SocketService extends Socket {
+export class SocketService {
+  private socket: Socket;
+
   constructor() {
-    super({
-      url: 'http://localhost:3000', // Your backend's Socket.io server URL
-      options: {
-        transports: ['websocket'], // Prefer WebSocket transport
-      },
+    // Initialize the socket but don't connect automatically
+    this.socket = io('http://localhost:3000', { autoConnect: false });
+
+    // Wait for the app to be stable (finished booting) before connecting the socket
+    inject(ApplicationRef).isStable
+      .pipe(first(isStable => isStable))
+      .subscribe(() => {
+        console.log('Angular app is stable, connecting to the socket...');
+        this.socket.connect(); // Connect to the WebSocket server
+      });
+  }
+
+  // Emit an event to the server
+  emitEvent(eventName: string, data: any) {
+    this.socket.emit(eventName, data);
+  }
+
+  // Listen for an event from the server
+  listenEvent(eventName: string): Observable<any> {
+    return new Observable((subscriber) => {
+      this.socket.on(eventName, (data) => {
+        subscriber.next(data);
+      });
     });
   }
 
-  // Listen for new messages from a channel
-  getMessage() {
-    return this.fromEvent('message');
-  }
-
-  // Join a specific channel
-  joinChannel(channel: string) {
-    this.emit('joinChannel', channel);
-  }
-
-  // Send a message to a specific channel
-  sendMessage(channel: string, message: string) {
-    this.emit('message', { channel, message });
+  // Disconnect from the socket
+  disconnect() {
+    this.socket.disconnect();
   }
 }
