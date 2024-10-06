@@ -7,11 +7,11 @@
   </li>
 </ul>
 
-<!-- Display chat area when a channel is selected -->
+<!-- Chat area -->
 <div *ngIf="selectedChannel">
   <h3>Chat in Channel {{ selectedChannel }}</h3>
 
-  <!-- Chat message history for text channel -->
+  <!-- Text channel -->
   <div *ngIf="selectedChannel === 1" class="chat-container">
     <div class="chat-area">
       <div *ngFor="let message of messages" class="chat-message">
@@ -19,14 +19,14 @@
       </div>
     </div>
 
-    <!-- Input area to send new message, fixed at the bottom -->
+    <!-- Send message input -->
     <div class="chat-input-container">
       <input [(ngModel)]="newMessage" placeholder="Type a message..." class="chat-input" />
       <button (click)="sendMessage()" class="send-button">Send</button>
     </div>
   </div>
 
-  <!-- Voice channel controls for voice channel -->
+  <!-- Voice chat controls -->
   <div *ngIf="selectedChannel === 2" class="voice-channel">
     <h3>Voice Chat</h3>
     <input [(ngModel)]="connectedPeerId" placeholder="Enter Peer ID to call" />

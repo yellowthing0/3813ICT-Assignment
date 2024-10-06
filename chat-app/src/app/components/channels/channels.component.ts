@@ -1,9 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Socket } from 'ngx-socket-io';
-import Peer, { MediaConnection } from 'peerjs'; // Import MediaConnection explicitly
+import Peer, { MediaConnection } from 'peerjs';
 
 @Component({
   selector: 'app-channels',
@@ -12,29 +12,42 @@ import Peer, { MediaConnection } from 'peerjs'; // Import MediaConnection explic
   styleUrls: ['./channels.component.css'],
   imports: [CommonModule, FormsModule]
 })
-export class ChannelsComponent implements OnInit {
+export class ChannelsComponent implements OnInit, AfterViewInit {
   channels = [
-    { id: 1, name: 'text' },
-    { id: 2, name: 'voice' }
+    { id: 1, name: 'Text' },
+    { id: 2, name: 'Voice' }
   ];
-  selectedChannel?: number; // Track selected channel ID
+  selectedChannel?: number;
   groupId?: number;
-  messages: string[] = []; // Store chat messages
-  newMessage = ''; // Bound to input field for sending messages
+  messages: string[] = [];
+  newMessage = '';
 
-  // Voice chat related
+  // Voice chat
   peer!: Peer;
   myStream!: MediaStream;
-  currentCall?: MediaConnection; // Use MediaConnection type
-  peerId: string = ''; // Store peer ID for connection
-  connectedPeerId: string = ''; // The peer ID to connect to
+  currentCall?: MediaConnection;
+  peerId: string = '';
+  connectedPeerId: string = '';
 
   constructor(private route: ActivatedRoute, private socket: Socket) {}
 
   ngOnInit(): void {
-    console.log('ngOnInit started');
     this.groupId = +this.route.snapshot.paramMap.get('groupId')!;
     console.log('Group ID: ', this.groupId);
+  }
+
+  ngAfterViewInit(): void {
+    this.initializeSocket();
+  }
+
+  initializeSocket(): void {
+    console.log('Initializing socket...');
+
+    // Receive message history
+    this.socket.on('messageHistory', (messageHistory: string[]) => {
+      console.log('Message history received: ', messageHistory);
+      this.messages = messageHistory; // Load message history into chat
+    });
 
     // Listen for incoming messages
     this.socket.on('message', (message: string) => {
@@ -42,56 +55,41 @@ export class ChannelsComponent implements OnInit {
       this.messages.push(message);
     });
 
-    // Listen for message history when joining a channel
-    this.socket.on('messageHistory', (history: string[]) => {
-      console.log('Message history received: ', history);
-      this.messages = history;
-    });
-
-    // Debugging Socket connection events
+    // Connection events
     this.socket.on('connect', () => {
       console.log('Socket connected');
     });
-
     this.socket.on('disconnect', () => {
       console.log('Socket disconnected');
     });
-
-    this.socket.on('connect_error', (err: Error) => {
-      console.error('Socket connection error: ', err);
-    });
-
-    // Initialize Peer.js for voice chat with a delay to avoid blocking the UI thread
-    console.log('Initializing Peer...');
-    setTimeout(() => {
-      this.initializePeer();
-    }, 2000); // Delay by 2 seconds
   }
 
-  // Handle text channel selection
+  // Select the text or voice channel
   onChannelSelect(channelId: number): void {
     this.selectedChannel = channelId;
-    this.messages = []; // Reset messages when switching channels
+    this.messages = []; // Clear messages when switching channels
 
-    // Emit event to join the selected channel
-    this.socket.emit('joinChannel', channelId);
+    if (this.selectedChannel === 2) {
+      this.initializePeer();
+    }
+
+    // Join the selected channel
+    this.socket.emit('joinChannel', this.selectedChannel);
   }
 
-  // Send a new chat message
+  // Send a message (text chat)
   sendMessage(): void {
     if (this.newMessage.trim()) {
-      console.log('Sending message to server: ', this.newMessage);
-      this.socket.emit('message', { channel: this.selectedChannel, message: this.newMessage }); // Emit the message to the server
-      this.newMessage = ''; // Clear the input field
+      this.socket.emit('message', { channel: this.selectedChannel, message: this.newMessage });
+      this.newMessage = '';
     }
   }
 
   // Initialize Peer.js for voice chat
   initializePeer(): void {
-    this.peer = new Peer(); // Initialize a new Peer instance
-    console.log('Peer initialized');
+    console.log('Initializing Peer...');
+    this.peer = new Peer();
 
-    // Get the peer ID when the connection is established
     this.peer.on('open', (id: string) => {
       this.peerId = id;
       console.log(`Peer ID: ${id}`);
@@ -100,11 +98,11 @@ export class ChannelsComponent implements OnInit {
     // Answer incoming calls
     this.peer.on('call', (call) => {
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        call.answer(stream); // Answer the call with our audio stream
+        call.answer(stream);
         this.myStream = stream;
 
-        call.on('stream', (remoteStream: MediaStream) => { // Specify the type for remoteStream
-          this.playAudioStream(remoteStream); // Play the remote stream
+        call.on('stream', (remoteStream: MediaStream) => {
+          this.playAudioStream(remoteStream);
         });
       });
     });
@@ -117,8 +115,8 @@ export class ChannelsComponent implements OnInit {
         this.myStream = stream;
         this.currentCall = this.peer.call(this.connectedPeerId, stream);
 
-        this.currentCall.on('stream', (remoteStream: MediaStream) => { // Specify the type for remoteStream
-          this.playAudioStream(remoteStream); // Play the remote stream
+        this.currentCall.on('stream', (remoteStream: MediaStream) => {
+          this.playAudioStream(remoteStream);
         });
       });
     }
@@ -129,14 +127,14 @@ export class ChannelsComponent implements OnInit {
     const audio = document.createElement('audio');
     audio.srcObject = stream;
     audio.autoplay = true;
-    document.body.appendChild(audio); // Add the audio element to the body
+    document.body.appendChild(audio);
   }
 
   // End the current voice call
   endCall(): void {
     if (this.currentCall) {
-      this.currentCall.close(); // End the call
-      this.myStream.getTracks().forEach((track) => track.stop()); // Stop the local audio stream
+      this.currentCall.close();
+      this.myStream.getTracks().forEach((track) => track.stop());
       this.currentCall = undefined;
     }
   }
