@@ -16,22 +16,18 @@
   <div *ngIf="selectedChannel === 1" class="chat-container">
     <div class="chat-area">
       <div *ngFor="let message of messages" class="chat-message">
-        <strong>{{ message.timestamp }}:</strong> {{ message.message }}
+        <strong>{{ message.timestamp }}:</strong>
+        <!-- Display message or image -->
+        <span *ngIf="message.message">{{ message.message }}</span>
+        <img *ngIf="message.imageUrl" [src]="message.imageUrl" alt="Chat Image" class="chat-image" />
       </div>
     </div>
 
     <!-- Send message input -->
     <div class="chat-input-container">
+      <input type="file" (change)="onFileSelected($event)" />
       <input [(ngModel)]="newMessage" placeholder="Type a message..." class="chat-input" />
       <button (click)="sendMessage()" class="send-button">Send</button>
     </div>
-  </div>
-
-  <!-- Voice chat controls -->
-  <div *ngIf="selectedChannel === 2" class="voice-channel">
-    <h3>Voice Chat</h3>
-    <input [(ngModel)]="connectedPeerId" placeholder="Enter Peer ID to call" />
-    <button (click)="startCall()">Start Voice Call</button>
-    <button (click)="endCall()" [disabled]="!currentCall">End Voice Call</button>
   </div>
 </div>

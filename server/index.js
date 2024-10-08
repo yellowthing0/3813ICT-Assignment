@@ -24,7 +24,7 @@ const messageSchema = new mongoose.Schema({
   groupId: Number,
   channel: Number,
   message: String,
-  imageUrl: String, // Add for image URLs
+  imageUrl: String, // For chat images
   timestamp: { type: Date, default: Date.now }
 });
 
@@ -38,29 +38,30 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// Configure file storage for images
+// Configure file storage for images (chat and profile pictures)
 const storage = multer.diskStorage({
-  destination: './uploads/',
+  destination: './uploads/', // Directory where uploaded files will be stored
   filename: (req, file, cb) => {
-    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname)); // Unique file naming
   }
 });
 
 const upload = multer({ storage: storage });
 
-app.use(express.static('./uploads'));
-app.use(express.json());
-app.use(cors());
+app.use(express.static('./uploads')); // Serve uploaded files statically
+app.use(express.json()); // Parse JSON requests
+app.use(cors()); // Enable CORS
 
-// Image upload route for chat images
+// Route for uploading chat images
 app.post('/api/upload', upload.single('chatImage'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
+  // Send the image URL back to the client
   res.json({ imageUrl: `/uploads/${req.file.filename}` });
 });
 
-// Image upload route for profile pictures
+// Route for uploading profile pictures
 app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
@@ -73,35 +74,36 @@ app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (re
   const user = await User.findOneAndUpdate(
     { username },
     { profilePictureUrl },
-    { new: true, upsert: true }
+    { new: true, upsert: true } // Create new document if not found
   );
 
   res.json({ profilePictureUrl: user.profilePictureUrl });
 });
 
-// Socket.io setup for real-time messaging and channels
+// Real-time messaging setup with Socket.io
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:4200",
+    origin: "http://localhost:4200", // Your Angular app URL
     methods: ["GET", "POST"],
     allowedHeaders: ["Access-Control-Allow-Origin"],
     credentials: true
   }
 });
 
+// Socket.io connection setup
 io.on('connection', (socket) => {
   console.log('User connected: ', socket.id);
 
   // Handle joining a channel and send message history
   socket.on('joinChannel', async ({ groupId, channel }) => {
     console.log(`User ${socket.id} joined group ${groupId}, channel ${channel}`);
-    socket.join(`${groupId}-${channel}`);
+    socket.join(`${groupId}-${channel}`); // Join the specific room based on group and channel
 
     try {
       const messages = await Message.find({ groupId, channel }).sort({ timestamp: 1 }).exec();
       socket.emit('messageHistory', messages.map(m => ({
         message: m.message,
-        imageUrl: m.imageUrl, // Send image URL
+        imageUrl: m.imageUrl, // Send image URL if exists
         timestamp: m.timestamp
       })));
     } catch (error) {
@@ -109,7 +111,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle sending a message to a specific channel and group
+  // Handle sending a message (with or without image)
   socket.on('message', async ({ groupId, channel, message, imageUrl }) => {
     console.log(`Message received in group ${groupId}, channel ${channel}:`, message, imageUrl);
 
@@ -117,6 +119,7 @@ io.on('connection', (socket) => {
       const newMessage = new Message({ groupId, channel, message, imageUrl });
       await newMessage.save();
 
+      // Broadcast the message to all users in the same group and channel
       io.to(`${groupId}-${channel}`).emit('message', {
         message,
         imageUrl,
@@ -127,11 +130,13 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle disconnect event
   socket.on('disconnect', (reason) => {
     console.log(`User ${socket.id} disconnected: ${reason}`);
   });
 });
 
+// Start the server
 server.listen(3000, () => {
   console.log('Server is running on port 3000');
 });
