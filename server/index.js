@@ -35,10 +35,6 @@ userSchema.pre('save', function (next) {
   });
 });
 
-userSchema.methods.comparePassword = function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
-};
-
 const User = mongoose.model('User', userSchema);
 
 // Define Message model
@@ -50,6 +46,28 @@ const messageSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 });
 const Message = mongoose.model('Message', messageSchema);
+
+// Middleware
+app.use(express.json());
+app.use(cors());
+app.use(express.static('./uploads')); // Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// JWT authentication middleware
+const authenticateJWT = (req, res, next) => {
+  const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
+  if (token) {
+    jwt.verify(token, 'your_secret_key', (err, user) => {
+      if (err) {
+        return res.sendStatus(403); // Invalid token
+      }
+      req.user = user;
+      next();
+    });
+  } else {
+    res.sendStatus(401); // No token provided
+  }
+};
 
 // Function to create a test user
 const createTestUser = async () => {
@@ -80,13 +98,7 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage: storage });  // Now upload is defined
-
-// Middleware
-app.use(express.json());
-app.use(cors());
-app.use(express.static('./uploads')); // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const upload = multer({ storage: storage });
 
 // Route for user login with JWT
 app.post('/api/login', async (req, res) => {
@@ -105,8 +117,8 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Route for fetching the current user's profile picture
-app.get('/api/user/:username/profilePicture', async (req, res) => {
+// Route for fetching the current user's profile picture (Protected)
+app.get('/api/user/:username/profilePicture', authenticateJWT, async (req, res) => {
   const { username } = req.params;
   try {
     const user = await User.findOne({ username });
@@ -120,12 +132,12 @@ app.get('/api/user/:username/profilePicture', async (req, res) => {
   }
 });
 
-// Route for updating user password
-app.post('/api/updatePassword', async (req, res) => {
-  const { username, oldPassword, newPassword } = req.body;
+// Route for updating user password (Protected)
+app.post('/api/updatePassword', authenticateJWT, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
 
   try {
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ _id: req.user.userId });
     if (!user || !(await bcrypt.compare(oldPassword, user.password))) {
       return res.status(401).json({ message: 'Incorrect current password' });
     }
@@ -140,18 +152,17 @@ app.post('/api/updatePassword', async (req, res) => {
   }
 });
 
-// Route for uploading profile pictures
-app.post('/api/updateProfilePicture', upload.single('profilePicture'), async (req, res) => {
+// Route for uploading profile pictures (Protected)
+app.post('/api/updateProfilePicture', authenticateJWT, upload.single('profilePicture'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
 
-  const { username } = req.body;
   const profilePictureUrl = `/uploads/${req.file.filename}`;
 
   try {
     const user = await User.findOneAndUpdate(
-      { username },
+      { _id: req.user.userId },
       { profilePictureUrl },
       { new: true }
     );
@@ -162,15 +173,15 @@ app.post('/api/updateProfilePicture', upload.single('profilePicture'), async (re
   }
 });
 
-// Route for uploading chat images
-app.post('/api/upload', upload.single('chatImage'), (req, res) => {
+// Route for uploading chat images (Protected)
+app.post('/api/upload', authenticateJWT, upload.single('chatImage'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
   res.json({ imageUrl: `/uploads/${req.file.filename}` });
 });
 
-// Real-time messaging with Socket.io
+// Real-time messaging with Socket.io (Optional JWT check if needed)
 const io = socketIo(server, {
   cors: {
     origin: "http://localhost:4200",

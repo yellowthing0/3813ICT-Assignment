@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { AuthGuard } from './auth.guard'; // Import the AuthGuard
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
@@ -8,14 +9,12 @@ export const routes: Routes = [
   },
   {
     path: 'groups',
-    loadComponent: () => import('./components/groups/groups.component').then(m => m.GroupsComponent)
-  },
-  {
-    path: 'groups/:groupId/channels', // Route for channels inside a group
-    loadComponent: () => import('./components/channels/channels.component').then(m => m.ChannelsComponent)
+    loadComponent: () => import('./components/groups/groups.component').then(m => m.GroupsComponent),
+    canActivate: [AuthGuard] // Protect the 'groups' route with the AuthGuard
   },
   {
     path: 'profile',
-    loadComponent: () => import('./components/profile/profile.component').then(m => m.ProfileComponent)
+    loadComponent: () => import('./components/profile/profile.component').then(m => m.ProfileComponent),
+    canActivate: [AuthGuard] // Protect the 'profile' route with the AuthGuard
   }
 ];
