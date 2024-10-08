@@ -1,0 +1,33 @@
+<div class="profile-page">
+  <h2>User Profile</h2>
+
+  <!-- Profile Picture Section -->
+  <div class="profile-picture-section">
+    <h3>Profile Picture</h3>
+    <div class="profile-picture">
+      <img [src]="profilePicturePreview || currentProfilePicture" alt="Profile Picture" class="profile-picture-image">
+    </div>
+    <div>
+      <input type="file" (change)="onProfilePictureSelected($event)">
+      <button (click)="updateProfilePicture()" [disabled]="!profileForm.get('profilePicture')?.value">Update Picture</button>
+    </div>
+  </div>
+
+  <!-- Password Update Section -->
+  <div class="password-section">
+    <h3>Change Password</h3>
+    <form [formGroup]="passwordForm" (ngSubmit)="updatePassword()">
+      <div>
+        <label for="oldPassword">Current Password:</label>
+        <input id="oldPassword" formControlName="oldPassword" type="password">
+      </div>
+
+      <div>
+        <label for="newPassword">New Password:</label>
+        <input id="newPassword" formControlName="newPassword" type="password">
+      </div>
+
+      <button type="submit" [disabled]="passwordForm.invalid">Change Password</button>
+    </form>
+  </div>
+</div>

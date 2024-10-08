@@ -105,16 +105,43 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Route for uploading chat images
-app.post('/api/upload', upload.single('chatImage'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No file uploaded' });
+// Route for fetching the current user's profile picture
+app.get('/api/user/:username/profilePicture', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const user = await User.findOne({ username });
+    if (user && user.profilePictureUrl) {
+      res.json({ profilePictureUrl: user.profilePictureUrl });
+    } else {
+      res.json({ profilePictureUrl: null }); // No profile picture available
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
   }
-  res.json({ imageUrl: `/uploads/${req.file.filename}` });
+});
+
+// Route for updating user password
+app.post('/api/updatePassword', async (req, res) => {
+  const { username, oldPassword, newPassword } = req.body;
+
+  try {
+    const user = await User.findOne({ username });
+    if (!user || !(await bcrypt.compare(oldPassword, user.password))) {
+      return res.status(401).json({ message: 'Incorrect current password' });
+    }
+
+    // Hash the new password before saving
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // Route for uploading profile pictures
-app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (req, res) => {
+app.post('/api/updateProfilePicture', upload.single('profilePicture'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
@@ -126,12 +153,21 @@ app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (re
     const user = await User.findOneAndUpdate(
       { username },
       { profilePictureUrl },
-      { new: true, upsert: true }
+      { new: true }
     );
+
     res.json({ profilePictureUrl: user.profilePictureUrl });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
+});
+
+// Route for uploading chat images
+app.post('/api/upload', upload.single('chatImage'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+  res.json({ imageUrl: `/uploads/${req.file.filename}` });
 });
 
 // Real-time messaging with Socket.io

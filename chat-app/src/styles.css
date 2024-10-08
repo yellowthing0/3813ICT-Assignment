@@ -1,1 +1,25 @@
-/* You can add global styles to this file, and also import other style files */
+/* Reset global margin and padding */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Reset body margin globally */
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Optional: Set a default font style for consistency */
+body, html {
+  font-family: Arial, sans-serif;
+  height: 100%;
+}
+
+/* Optional: Style for the main content */
+main {
+  min-height: 100vh;
+  padding: 20px; /* Optional padding for content */
+}
