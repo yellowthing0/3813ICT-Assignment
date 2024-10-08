@@ -86,6 +86,7 @@ const upload = multer({ storage: storage });  // Now upload is defined
 app.use(express.json());
 app.use(cors());
 app.use(express.static('./uploads')); // Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Route for user login with JWT
 app.post('/api/login', async (req, res) => {

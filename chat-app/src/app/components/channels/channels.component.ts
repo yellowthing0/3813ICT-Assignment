@@ -30,7 +30,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   myStream!: MediaStream;
   currentCall?: MediaConnection;
   peerId: string = '';
-  connectedPeerId: string = '';
+  remotePeerId: string = '1'; // Set the peer ID to '1'
   localVideoStream?: MediaStream;
   remoteVideoStream?: MediaStream;
 
@@ -108,7 +108,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     this.selectedFile = event.target.files[0]; // Get the selected file
   }
 
-  // Send text or image message with error handling
+  // Send text or image message
   sendMessage(): void {
     if (this.newMessage.trim() || this.selectedFile) {
       if (this.selectedFile) {
@@ -116,22 +116,16 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
         formData.append('chatImage', this.selectedFile);
 
         // Upload image to server and send message with imageUrl
-        this.socketService.uploadImage(formData).subscribe(
-          (response: any) => {
-            this.socketService.emitEvent('message', {
-              groupId: this.groupId,
-              channel: this.selectedChannel,
-              message: this.newMessage,
-              imageUrl: response.imageUrl // Include uploaded image URL
-            });
-            this.newMessage = '';
-            this.selectedFile = undefined; // Reset after upload
-          },
-          (error) => {
-            console.error('File upload failed:', error);
-            // Optionally, show error to the user (can add UI feedback)
-          }
-        );
+        this.socketService.uploadImage(formData).subscribe((response: any) => {
+          this.socketService.emitEvent('message', {
+            groupId: this.groupId,
+            channel: this.selectedChannel,
+            message: this.newMessage,
+            imageUrl: response.imageUrl // Include uploaded image URL
+          });
+          this.newMessage = '';
+          this.selectedFile = undefined; // Reset after upload
+        });
       } else {
         // Send message without image
         this.socketService.emitEvent('message', {
@@ -170,14 +164,14 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     });
   }
 
-  // Start a video call
+  // Start a video call to peer with ID '1'
   startCall(): void {
-    if (this.connectedPeerId.trim()) {
+    if (this.remotePeerId) { // Always '1' in this case
       navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
         this.localVideoStream = stream;
         this.displayVideo('local-video', stream); // Display local video
 
-        this.currentCall = this.peer.call(this.connectedPeerId, stream);
+        this.currentCall = this.peer.call(this.remotePeerId, stream);
 
         this.currentCall.on('stream', (remoteStream: MediaStream) => {
           this.remoteVideoStream = remoteStream;
@@ -186,16 +180,13 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
 
         this.currentCall.on('error', (err) => {
           console.error('Error during call:', err);
-          // Optionally, notify the user of the error (can add UI feedback)
         });
 
         this.currentCall.on('close', () => {
           console.log('Call ended');
-          // Reset or notify user
         });
       }).catch((error) => {
         console.error('Error accessing media devices:', error);
-        // Optionally, notify the user of the error (can add UI feedback)
       });
     }
   }
