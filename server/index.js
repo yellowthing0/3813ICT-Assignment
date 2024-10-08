@@ -1,9 +1,10 @@
-// server/index.js
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const cors = require('cors'); // Enable CORS for development
-const mongoose = require('mongoose'); // Add mongoose for MongoDB
+const cors = require('cors');
+const mongoose = require('mongoose');
+const multer = require('multer');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -20,92 +21,117 @@ mongoose.connect('mongodb://localhost:27017/chatApp', {
 
 // Define a message schema and model
 const messageSchema = new mongoose.Schema({
-  groupId: Number,  // Add group ID to distinguish between different groups
-  channel: Number,  // Channel number (Text or Voice)
+  groupId: Number,
+  channel: Number,
   message: String,
+  imageUrl: String, // Add for image URLs
   timestamp: { type: Date, default: Date.now }
 });
 
 const Message = mongoose.model('Message', messageSchema);
 
+// Define a user schema for profile pictures
+const userSchema = new mongoose.Schema({
+  username: String,
+  profilePictureUrl: String // URL of the profile picture
+});
+
+const User = mongoose.model('User', userSchema);
+
+// Configure file storage for images
+const storage = multer.diskStorage({
+  destination: './uploads/',
+  filename: (req, file, cb) => {
+    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage });
+
+app.use(express.static('./uploads'));
+app.use(express.json());
+app.use(cors());
+
+// Image upload route for chat images
+app.post('/api/upload', upload.single('chatImage'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+  res.json({ imageUrl: `/uploads/${req.file.filename}` });
+});
+
+// Image upload route for profile pictures
+app.post('/api/uploadProfilePicture', upload.single('profilePicture'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+
+  const { username } = req.body;
+  const profilePictureUrl = `/uploads/${req.file.filename}`;
+
+  // Save the profile picture URL in the user document
+  const user = await User.findOneAndUpdate(
+    { username },
+    { profilePictureUrl },
+    { new: true, upsert: true }
+  );
+
+  res.json({ profilePictureUrl: user.profilePictureUrl });
+});
+
 // Socket.io setup for real-time messaging and channels
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:4200", // Your Angular app URL
+    origin: "http://localhost:4200",
     methods: ["GET", "POST"],
     allowedHeaders: ["Access-Control-Allow-Origin"],
     credentials: true
   }
 });
 
-// Middleware to parse JSON bodies
-app.use(express.json());
-app.use(cors());
-
-// Serve static files for the Angular app
-app.use(express.static('../dist/discord-like-app'));
-
-// Socket.io setup for real-time messaging and channels
 io.on('connection', (socket) => {
   console.log('User connected: ', socket.id);
 
   // Handle joining a channel and send message history
   socket.on('joinChannel', async ({ groupId, channel }) => {
     console.log(`User ${socket.id} joined group ${groupId}, channel ${channel}`);
-    socket.join(`${groupId}-${channel}`); // Join a room specific to the group and channel
+    socket.join(`${groupId}-${channel}`);
 
-    // Fetch message history from MongoDB and send to the user
     try {
       const messages = await Message.find({ groupId, channel }).sort({ timestamp: 1 }).exec();
       socket.emit('messageHistory', messages.map(m => ({
         message: m.message,
+        imageUrl: m.imageUrl, // Send image URL
         timestamp: m.timestamp
-      }))); // Send the message history
+      })));
     } catch (error) {
       console.error('Error fetching message history:', error);
     }
   });
 
   // Handle sending a message to a specific channel and group
-  socket.on('message', async ({ groupId, channel, message }) => {
-    console.log(`Message received in group ${groupId}, channel ${channel}:`, message);
+  socket.on('message', async ({ groupId, channel, message, imageUrl }) => {
+    console.log(`Message received in group ${groupId}, channel ${channel}:`, message, imageUrl);
 
-    // Save the message to MongoDB
     try {
-      const newMessage = new Message({ groupId, channel, message });
+      const newMessage = new Message({ groupId, channel, message, imageUrl });
       await newMessage.save();
 
-      // Broadcast the message to all users in the same group and channel
-      io.to(`${groupId}-${channel}`).emit('message', { message, timestamp: new Date() });
+      io.to(`${groupId}-${channel}`).emit('message', {
+        message,
+        imageUrl,
+        timestamp: new Date()
+      });
     } catch (error) {
       console.error('Error saving message:', error);
     }
   });
 
-  // Handle disconnect event
   socket.on('disconnect', (reason) => {
     console.log(`User ${socket.id} disconnected: ${reason}`);
   });
-
-  // Handle error event
-  socket.on('error', (err) => {
-    console.error('Socket error:', err);
-  });
 });
 
-// Example simple login route without JWT
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-
-  // Example: Static username and password (replace with real authentication logic)
-  if (username === '1' && password === '1') {
-    return res.json({ message: 'Login successful' });
-  } else {
-    return res.status(401).json({ message: 'Invalid username or password' });
-  }
-});
-
-// Start the server
 server.listen(3000, () => {
   console.log('Server is running on port 3000');
 });

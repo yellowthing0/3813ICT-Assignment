@@ -2,6 +2,7 @@ import { ChangeDetectorRef, Component, OnInit, AfterViewInit } from '@angular/co
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';  // <-- Ensure this is imported
 import { SocketService } from '../../services/socket.service';
 import Peer, { MediaConnection } from 'peerjs';
 import { Location } from '@angular/common';
@@ -11,7 +12,7 @@ import { Location } from '@angular/common';
   standalone: true,
   templateUrl: './channels.component.html',
   styleUrls: ['./channels.component.css'],
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule, FormsModule, HttpClientModule],  // <-- Include HttpClientModule in imports
 })
 export class ChannelsComponent implements OnInit, AfterViewInit {
   channels = [
@@ -20,7 +21,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   ];
   selectedChannel?: number;
   groupId?: number;
-  messages: { message: string, timestamp: string }[] = []; // Store messages as objects
+  messages: { message: string, timestamp: string }[] = [];
   newMessage = '';
 
   // Voice chat
@@ -30,7 +31,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   peerId: string = '';
   connectedPeerId: string = '';
 
-  private initializedSocket = false; // Track socket initialization to prevent multiple listeners
+  private initializedSocket = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -40,45 +41,38 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit(): void {
-    // Group ID is ready in ngOnInit
     this.groupId = +this.route.snapshot.paramMap.get('groupId')!;
     console.log('Group ID: ', this.groupId);
   }
 
   ngAfterViewInit(): void {
-    // Only after the view has rendered, initialize socket connections
     if (!this.initializedSocket) {
       this.initializeSocket();
-      this.initializedSocket = true; // Ensure this is called only once
+      this.initializedSocket = true;
     }
   }
 
   initializeSocket(): void {
     console.log('Initializing socket...');
 
-    // Receive message history
     this.socketService.listenEvent('messageHistory').subscribe((messageHistory: any[]) => {
       console.log('Message history received: ', messageHistory);
       this.messages = messageHistory.map((msg) => ({
         message: msg.message,
-        timestamp: new Date(msg.timestamp).toLocaleString() // Convert to readable format
+        timestamp: new Date(msg.timestamp).toLocaleString()
       }));
-      this.cdr.detectChanges(); // Ensure view is updated
+      this.cdr.detectChanges();
     });
 
-    // Listen for incoming messages
     this.socketService.listenEvent('message').subscribe((message: any) => {
       console.log('Message received from server: ', message);
       this.messages.push({
         message: message.message,
-        timestamp: new Date(message.timestamp).toLocaleString() // Convert to readable format
+        timestamp: new Date(message.timestamp).toLocaleString()
       });
-
-      // Manually trigger change detection to update the view
       this.cdr.detectChanges();
     });
 
-    // Connection events
     this.socketService.listenEvent('connect').subscribe(() => {
       console.log('Socket connected');
     });
@@ -87,16 +81,14 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     });
   }
 
-  // Select the text or voice channel
   onChannelSelect(channelId: number): void {
     this.selectedChannel = channelId;
-    this.messages = []; // Clear messages when switching channels
+    this.messages = [];
 
     if (this.selectedChannel === 2) {
       this.initializePeer();
     }
 
-    // Ensure joinChannel is called only once
     if (this.groupId && this.selectedChannel) {
       this.socketService.emitEvent('joinChannel', {
         groupId: this.groupId,
@@ -105,7 +97,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // Send a message (text chat)
   sendMessage(): void {
     if (this.newMessage.trim()) {
       this.socketService.emitEvent('message', {
@@ -117,7 +108,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // Initialize Peer.js for voice chat
   initializePeer(): void {
     console.log('Initializing Peer...');
     this.peer = new Peer();
@@ -127,7 +117,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       console.log(`Peer ID: ${id}`);
     });
 
-    // Answer incoming calls
     this.peer.on('call', (call) => {
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         call.answer(stream);
@@ -140,7 +129,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     });
   }
 
-  // Start a voice call
   startCall(): void {
     if (this.connectedPeerId.trim()) {
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
@@ -154,7 +142,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // Play the audio stream in the browser
   playAudioStream(stream: MediaStream): void {
     const audio = document.createElement('audio');
     audio.srcObject = stream;
@@ -162,7 +149,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     document.body.appendChild(audio);
   }
 
-  // End the current voice call
   endCall(): void {
     if (this.currentCall) {
       this.currentCall.close();
@@ -172,6 +158,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   }
 
   goBack(): void {
-    this.location.back(); // This takes the user to the previous page
+    this.location.back();
   }
 }

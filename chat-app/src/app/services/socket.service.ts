@@ -1,6 +1,7 @@
-import { ApplicationRef, Injectable, inject } from '@angular/core';
+import { Injectable, ApplicationRef } from '@angular/core';
 import { Observable, first } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
+import { HttpClient } from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root'
@@ -8,13 +9,13 @@ import { io, Socket } from 'socket.io-client';
 export class SocketService {
   private socket: Socket;
 
-  constructor() {
+  constructor(private http: HttpClient, private appRef: ApplicationRef) {
     // Initialize the socket but don't connect automatically
     this.socket = io('http://localhost:3000', { autoConnect: false });
 
     // Wait for the app to be stable (finished booting) before connecting the socket
-    inject(ApplicationRef).isStable
-      .pipe(first(isStable => isStable))
+    this.appRef.isStable
+      .pipe(first((isStable) => isStable))
       .subscribe(() => {
         console.log('Angular app is stable, connecting to the socket...');
         this.socket.connect(); // Connect to the WebSocket server
@@ -38,5 +39,10 @@ export class SocketService {
   // Disconnect from the socket
   disconnect() {
     this.socket.disconnect();
+  }
+
+  // Upload image to the server
+  uploadImage(formData: FormData): Observable<any> {
+    return this.http.post('http://localhost:3000/api/upload', formData);
   }
 }
