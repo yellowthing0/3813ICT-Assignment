@@ -194,7 +194,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   endCall(): void {
     if (this.currentCall) {
       this.currentCall.close();
-      this.myStream.getTracks().forEach((track) => track.stop());
       this.currentCall = undefined;
     }
 

@@ -18,7 +18,7 @@
       <div *ngFor="let message of messages" class="chat-message">
         <strong>{{ message.timestamp }}:</strong>
         <span>{{ message.message }}</span>
-        <img *ngIf="message.imageUrl" [src]="getImageUrl(message.imageUrl)" alt="Chat Image" width="100"> <!-- Display image if present -->
+        <img *ngIf="message.imageUrl" [src]="getImageUrl(message.imageUrl)" alt="Chat Image" width="100">
       </div>
     </div>
 
@@ -31,11 +31,16 @@
   </div>
 
   <!-- Video chat controls -->
-  <div *ngIf="selectedChannel === 2" class="video-chat">
+  <div *ngIf="selectedChannel === 2" class="video-chat-container">
     <h3>Video Chat</h3>
-    <video id="local-video" autoplay playsinline></video>
-    <video id="remote-video" autoplay playsinline></video>
 
+    <!-- Video element for local stream -->
+    <div class="video-stream" id="local-video-container">
+      <h4>Local Video</h4>
+      <video id="local-video" autoplay muted playsinline></video>
+    </div>
+
+    <!-- Controls for starting and ending calls -->
     <input [(ngModel)]="connectedPeerId" placeholder="Enter Peer ID to call" />
     <button (click)="startCall()">Start Video Call</button>
     <button (click)="endCall()" [disabled]="!currentCall">End Video Call</button>
