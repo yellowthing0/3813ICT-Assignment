@@ -2,7 +2,6 @@ import { ChangeDetectorRef, Component, OnInit, AfterViewInit } from '@angular/co
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';  // <-- Ensure this is imported
 import { SocketService } from '../../services/socket.service';
 import Peer, { MediaConnection } from 'peerjs';
 import { Location } from '@angular/common';
@@ -12,7 +11,7 @@ import { Location } from '@angular/common';
   standalone: true,
   templateUrl: './channels.component.html',
   styleUrls: ['./channels.component.css'],
-  imports: [CommonModule, FormsModule, HttpClientModule],  // <-- Include HttpClientModule in imports
+  imports: [CommonModule, FormsModule],  // <-- Include HttpClientModule in imports
 })
 export class ChannelsComponent implements OnInit, AfterViewInit {
   channels = [
