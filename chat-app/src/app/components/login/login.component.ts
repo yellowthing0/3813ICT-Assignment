@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -15,7 +16,7 @@ export class LoginComponent {
   submitted = false;
   errorMessage: string = '';
 
-  constructor(private formBuilder: FormBuilder, private router: Router) {
+  constructor(private formBuilder: FormBuilder, private router: Router, private http: HttpClient) {
     this.loginForm = this.formBuilder.group({
       username: ['', Validators.required],
       password: ['', Validators.required]
@@ -28,12 +29,18 @@ export class LoginComponent {
       return;
     }
 
-    // Perform authentication (mocked for now)
     const { username, password } = this.loginForm.value;
-    if (username === '1' && password === '1') {
-      this.router.navigate(['/groups']);
-    } else {
-      this.errorMessage = 'Invalid username or password';
-    }
+
+    // Send login request to server
+    this.http.post('http://localhost:3000/api/login', { username, password }).subscribe(
+      (response: any) => {
+        // Store JWT token in local storage
+        localStorage.setItem('token', response.token);
+        this.router.navigate(['/groups']);
+      },
+      (error) => {
+        this.errorMessage = 'Invalid username or password';
+      }
+    );
   }
 }

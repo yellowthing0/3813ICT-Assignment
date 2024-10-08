@@ -108,7 +108,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     this.selectedFile = event.target.files[0]; // Get the selected file
   }
 
-  // Send text or image message
+  // Send text or image message with error handling
   sendMessage(): void {
     if (this.newMessage.trim() || this.selectedFile) {
       if (this.selectedFile) {
@@ -116,16 +116,22 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
         formData.append('chatImage', this.selectedFile);
 
         // Upload image to server and send message with imageUrl
-        this.socketService.uploadImage(formData).subscribe((response: any) => {
-          this.socketService.emitEvent('message', {
-            groupId: this.groupId,
-            channel: this.selectedChannel,
-            message: this.newMessage,
-            imageUrl: response.imageUrl // Include uploaded image URL
-          });
-          this.newMessage = '';
-          this.selectedFile = undefined; // Reset after upload
-        });
+        this.socketService.uploadImage(formData).subscribe(
+          (response: any) => {
+            this.socketService.emitEvent('message', {
+              groupId: this.groupId,
+              channel: this.selectedChannel,
+              message: this.newMessage,
+              imageUrl: response.imageUrl // Include uploaded image URL
+            });
+            this.newMessage = '';
+            this.selectedFile = undefined; // Reset after upload
+          },
+          (error) => {
+            console.error('File upload failed:', error);
+            // Optionally, show error to the user (can add UI feedback)
+          }
+        );
       } else {
         // Send message without image
         this.socketService.emitEvent('message', {
@@ -177,6 +183,19 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
           this.remoteVideoStream = remoteStream;
           this.displayVideo('remote-video', remoteStream); // Display remote video
         });
+
+        this.currentCall.on('error', (err) => {
+          console.error('Error during call:', err);
+          // Optionally, notify the user of the error (can add UI feedback)
+        });
+
+        this.currentCall.on('close', () => {
+          console.log('Call ended');
+          // Reset or notify user
+        });
+      }).catch((error) => {
+        console.error('Error accessing media devices:', error);
+        // Optionally, notify the user of the error (can add UI feedback)
       });
     }
   }
