@@ -17,20 +17,22 @@ import { Location } from '@angular/common';
 export class ChannelsComponent implements OnInit, AfterViewInit {
   channels = [
     { id: 1, name: 'Text' },
-    { id: 2, name: 'Voice' }
+    { id: 2, name: 'Voice/Video' }
   ];
   selectedChannel?: number;
   groupId?: number;
-  messages: { message: string, timestamp: string, imageUrl?: string }[] = [];
+  messages: { message: string, timestamp: string, imageUrl?: string }[] = []; // Handle images
   newMessage = '';
-  selectedFile?: File; // Store the selected image file
+  selectedFile?: File; // For image upload
 
-  // Voice chat
+  // Voice and video chat
   peer!: Peer;
   myStream!: MediaStream;
   currentCall?: MediaConnection;
   peerId: string = '';
   connectedPeerId: string = '';
+  localVideoStream?: MediaStream;
+  remoteVideoStream?: MediaStream;
 
   private initializedSocket = false;
 
@@ -60,7 +62,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       console.log('Message history received: ', messageHistory);
       this.messages = messageHistory.map((msg) => ({
         message: msg.message,
-        imageUrl: msg.imageUrl ? this.getImageUrl(msg.imageUrl) : undefined, // Handle image URL
+        imageUrl: msg.imageUrl, // Handle image URLs
         timestamp: new Date(msg.timestamp).toLocaleString()
       }));
       this.cdr.detectChanges();
@@ -70,7 +72,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       console.log('Message received from server: ', message);
       this.messages.push({
         message: message.message,
-        imageUrl: message.imageUrl ? this.getImageUrl(message.imageUrl) : undefined, // Handle image URL
+        imageUrl: message.imageUrl, // Handle image URLs
         timestamp: new Date(message.timestamp).toLocaleString()
       });
       this.cdr.detectChanges();
@@ -90,10 +92,9 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     this.messages = []; // Clear previous messages
 
     if (this.selectedChannel === 2) {
-      this.initializePeer(); // Initialize Peer.js for voice chat
+      this.initializePeer(); // Initialize Peer.js for voice and video chat
     }
 
-    // Join the selected channel
     if (this.groupId && this.selectedChannel) {
       this.socketService.emitEvent('joinChannel', {
         groupId: this.groupId,
@@ -102,19 +103,19 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // Function to handle file selection
+  // Handle file selection for image upload
   onFileSelected(event: any): void {
     this.selectedFile = event.target.files[0]; // Get the selected file
   }
 
-  // Function to send a message (text or with image)
+  // Send text or image message
   sendMessage(): void {
     if (this.newMessage.trim() || this.selectedFile) {
       if (this.selectedFile) {
         const formData = new FormData();
         formData.append('chatImage', this.selectedFile);
 
-        // Upload image to server and send the message with imageUrl
+        // Upload image to server and send message with imageUrl
         this.socketService.uploadImage(formData).subscribe((response: any) => {
           this.socketService.emitEvent('message', {
             groupId: this.groupId,
@@ -123,7 +124,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
             imageUrl: response.imageUrl // Include uploaded image URL
           });
           this.newMessage = '';
-          this.selectedFile = undefined; // Reset the file input after upload
+          this.selectedFile = undefined; // Reset after upload
         });
       } else {
         // Send message without image
@@ -131,19 +132,14 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
           groupId: this.groupId,
           channel: this.selectedChannel,
           message: this.newMessage,
-          imageUrl: '' // Empty when no image is sent
+          imageUrl: '' // No image
         });
         this.newMessage = '';
       }
     }
   }
 
-  // Function to get full image URL
-  getImageUrl(imageUrl: string): string {
-    return `http://localhost:3000${imageUrl}`; // Load image from backend server (localhost:3000)
-  }
-
-  // Peer.js related functions (for voice chat)
+  // Peer.js for voice and video chat
   initializePeer(): void {
     console.log('Initializing Peer...');
     this.peer = new Peer();
@@ -154,43 +150,66 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     });
 
     this.peer.on('call', (call) => {
-      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        call.answer(stream);
-        this.myStream = stream;
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
+        this.localVideoStream = stream;
+        this.displayVideo('local-video', stream); // Display local video
+
+        call.answer(stream); // Answer the call with our local stream
 
         call.on('stream', (remoteStream: MediaStream) => {
-          this.playAudioStream(remoteStream);
+          this.remoteVideoStream = remoteStream;
+          this.displayVideo('remote-video', remoteStream); // Display remote video
         });
       });
     });
   }
 
+  // Start a video call
   startCall(): void {
     if (this.connectedPeerId.trim()) {
-      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-        this.myStream = stream;
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
+        this.localVideoStream = stream;
+        this.displayVideo('local-video', stream); // Display local video
+
         this.currentCall = this.peer.call(this.connectedPeerId, stream);
 
         this.currentCall.on('stream', (remoteStream: MediaStream) => {
-          this.playAudioStream(remoteStream);
+          this.remoteVideoStream = remoteStream;
+          this.displayVideo('remote-video', remoteStream); // Display remote video
         });
       });
     }
   }
 
-  playAudioStream(stream: MediaStream): void {
-    const audio = document.createElement('audio');
-    audio.srcObject = stream;
-    audio.autoplay = true;
-    document.body.appendChild(audio);
+  // Play the video stream
+  displayVideo(elementId: string, stream: MediaStream): void {
+    const videoElement = document.getElementById(elementId) as HTMLVideoElement;
+    if (videoElement) {
+      videoElement.srcObject = stream;
+      videoElement.play();
+    }
   }
 
+  // End the current video call
   endCall(): void {
     if (this.currentCall) {
       this.currentCall.close();
       this.myStream.getTracks().forEach((track) => track.stop());
       this.currentCall = undefined;
     }
+
+    if (this.localVideoStream) {
+      this.localVideoStream.getTracks().forEach(track => track.stop());
+    }
+
+    if (this.remoteVideoStream) {
+      this.remoteVideoStream.getTracks().forEach(track => track.stop());
+    }
+  }
+
+  // Get full image URL for displaying chat images
+  getImageUrl(imageUrl: string): string {
+    return `http://localhost:3000${imageUrl}`; // Load image from backend server
   }
 
   goBack(): void {
