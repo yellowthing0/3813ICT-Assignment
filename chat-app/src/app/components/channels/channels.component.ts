@@ -2,6 +2,7 @@ import { ChangeDetectorRef, Component, OnInit, AfterViewInit } from '@angular/co
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
 import { SocketService } from '../../services/socket.service';
 import Peer, { MediaConnection } from 'peerjs';
 import { Location } from '@angular/common';
@@ -11,7 +12,7 @@ import { Location } from '@angular/common';
   standalone: true,
   templateUrl: './channels.component.html',
   styleUrls: ['./channels.component.css'],
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HttpClientModule],
 })
 export class ChannelsComponent implements OnInit, AfterViewInit {
   channels = [
@@ -22,7 +23,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   groupId?: number;
   messages: { message: string, timestamp: string, imageUrl?: string }[] = [];
   newMessage = '';
-  selectedFile?: File;  // <-- Track selected image file
+  selectedFile?: File; // Store the selected image file
 
   // Voice chat
   peer!: Peer;
@@ -59,7 +60,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       console.log('Message history received: ', messageHistory);
       this.messages = messageHistory.map((msg) => ({
         message: msg.message,
-        imageUrl: msg.imageUrl,
+        imageUrl: msg.imageUrl ? this.getImageUrl(msg.imageUrl) : undefined, // Handle image URL
         timestamp: new Date(msg.timestamp).toLocaleString()
       }));
       this.cdr.detectChanges();
@@ -69,7 +70,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       console.log('Message received from server: ', message);
       this.messages.push({
         message: message.message,
-        imageUrl: message.imageUrl,
+        imageUrl: message.imageUrl ? this.getImageUrl(message.imageUrl) : undefined, // Handle image URL
         timestamp: new Date(message.timestamp).toLocaleString()
       });
       this.cdr.detectChanges();
@@ -83,14 +84,16 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     });
   }
 
+  // Handle channel selection and joining
   onChannelSelect(channelId: number): void {
     this.selectedChannel = channelId;
-    this.messages = [];
+    this.messages = []; // Clear previous messages
 
     if (this.selectedChannel === 2) {
-      this.initializePeer();
+      this.initializePeer(); // Initialize Peer.js for voice chat
     }
 
+    // Join the selected channel
     if (this.groupId && this.selectedChannel) {
       this.socketService.emitEvent('joinChannel', {
         groupId: this.groupId,
@@ -99,43 +102,48 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // Handle file selection for image upload
-  onFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      this.selectedFile = input.files[0];
-    }
+  // Function to handle file selection
+  onFileSelected(event: any): void {
+    this.selectedFile = event.target.files[0]; // Get the selected file
   }
 
+  // Function to send a message (text or with image)
   sendMessage(): void {
-    if (this.selectedFile) {
-      // If an image is selected, upload it first
-      const formData = new FormData();
-      formData.append('chatImage', this.selectedFile);
+    if (this.newMessage.trim() || this.selectedFile) {
+      if (this.selectedFile) {
+        const formData = new FormData();
+        formData.append('chatImage', this.selectedFile);
 
-      this.socketService.uploadImage(formData).subscribe((response: any) => {
-        const imageUrl = response.imageUrl;
-        this.emitMessage(imageUrl); // Send the image URL in the message
-      });
-
-      this.selectedFile = undefined; // Reset selected file after upload
-    } else {
-      // If no image, just send the text message
-      this.emitMessage();
+        // Upload image to server and send the message with imageUrl
+        this.socketService.uploadImage(formData).subscribe((response: any) => {
+          this.socketService.emitEvent('message', {
+            groupId: this.groupId,
+            channel: this.selectedChannel,
+            message: this.newMessage,
+            imageUrl: response.imageUrl // Include uploaded image URL
+          });
+          this.newMessage = '';
+          this.selectedFile = undefined; // Reset the file input after upload
+        });
+      } else {
+        // Send message without image
+        this.socketService.emitEvent('message', {
+          groupId: this.groupId,
+          channel: this.selectedChannel,
+          message: this.newMessage,
+          imageUrl: '' // Empty when no image is sent
+        });
+        this.newMessage = '';
+      }
     }
   }
 
-  // Emit message with or without an image URL
-  emitMessage(imageUrl?: string): void {
-    this.socketService.emitEvent('message', {
-      groupId: this.groupId,
-      channel: this.selectedChannel,
-      message: this.newMessage || '', // Send empty string if no message
-      imageUrl: imageUrl || null // Send image URL or null
-    });
-    this.newMessage = ''; // Clear the message input
+  // Function to get full image URL
+  getImageUrl(imageUrl: string): string {
+    return `http://localhost:3000${imageUrl}`; // Load image from backend server (localhost:3000)
   }
 
+  // Peer.js related functions (for voice chat)
   initializePeer(): void {
     console.log('Initializing Peer...');
     this.peer = new Peer();

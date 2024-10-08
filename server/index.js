@@ -51,6 +51,7 @@ const upload = multer({ storage: storage });
 app.use(express.static('./uploads')); // Serve uploaded files statically
 app.use(express.json()); // Parse JSON requests
 app.use(cors()); // Enable CORS
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Route for uploading chat images
 app.post('/api/upload', upload.single('chatImage'), (req, res) => {

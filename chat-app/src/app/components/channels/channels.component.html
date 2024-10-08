@@ -17,15 +17,14 @@
     <div class="chat-area">
       <div *ngFor="let message of messages" class="chat-message">
         <strong>{{ message.timestamp }}:</strong>
-        <!-- Display message or image -->
-        <span *ngIf="message.message">{{ message.message }}</span>
-        <img *ngIf="message.imageUrl" [src]="message.imageUrl" alt="Chat Image" class="chat-image" />
+        <span>{{ message.message }}</span>
+        <img *ngIf="message.imageUrl" [src]="message.imageUrl" alt="Chat Image" width="100"> <!-- Display image if present -->
       </div>
     </div>
 
     <!-- Send message input -->
     <div class="chat-input-container">
-      <input type="file" (change)="onFileSelected($event)" />
+      <input type="file" (change)="onFileSelected($event)">
       <input [(ngModel)]="newMessage" placeholder="Type a message..." class="chat-input" />
       <button (click)="sendMessage()" class="send-button">Send</button>
     </div>
