@@ -1,7 +1,7 @@
 import { Injectable, ApplicationRef } from '@angular/core';
 import { Observable, first } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root'
@@ -41,8 +41,13 @@ export class SocketService {
     this.socket.disconnect();
   }
 
-  // Upload image to the server
+  // Upload image to the server with Authorization token
   uploadImage(formData: FormData): Observable<any> {
-    return this.http.post('http://localhost:3000/api/upload', formData);
+    const token = localStorage.getItem('token'); // Retrieve the JWT token
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}` // Add Authorization header with the token
+    });
+
+    return this.http.post('http://localhost:3000/api/upload', formData, { headers });
   }
 }

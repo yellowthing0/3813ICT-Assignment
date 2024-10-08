@@ -2,7 +2,7 @@ import { ChangeDetectorRef, Component, OnInit, AfterViewInit } from '@angular/co
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
+import { HttpClientModule, HttpHeaders } from '@angular/common/http';
 import { SocketService } from '../../services/socket.service';
 import Peer, { MediaConnection } from 'peerjs';
 import { Location } from '@angular/common';
@@ -111,6 +111,9 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   // Send text or image message
   sendMessage(): void {
     if (this.newMessage.trim() || this.selectedFile) {
+      const token = localStorage.getItem('token'); // Get JWT token from localStorage
+      const headers = new HttpHeaders({ 'Authorization': `Bearer ${token}` });
+
       if (this.selectedFile) {
         const formData = new FormData();
         formData.append('chatImage', this.selectedFile);
