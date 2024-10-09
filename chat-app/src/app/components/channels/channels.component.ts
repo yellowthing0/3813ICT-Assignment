@@ -35,16 +35,16 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     timestamp: string;
     imageUrl?: string;
     profilePictureUrl?: string;
+    userId?: string;
   }[] = [];
   newMessage = '';
-  selectedFile?: File; // For image upload
+  selectedFile?: File;
 
-  // Voice and video chat
   peer!: Peer;
   myStream!: MediaStream;
   currentCall?: MediaConnection;
   peerId: string = '';
-  remotePeerId: string = '1'; // Set the peer ID to '1'
+  remotePeerId: string = '1';
   localVideoStream?: MediaStream;
   remoteVideoStream?: MediaStream;
 
@@ -79,19 +79,12 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       let token: string | null = '';
 
       if (isPlatformBrowser(this.platformId)) {
-        token = localStorage.getItem('token'); // Retrieve JWT token from localStorage
+        token = localStorage.getItem('token');
       }
 
-      if (token) {
-        // Authenticate the socket connection with the token
-        this.socketService.emitEvent('authenticate', token);
-      } else {
-        console.error('No JWT token found for socket authentication');
-      }
+      this.socketService.emitEvent('authenticate', token);
     });
 
-
-    // Listening to message history from the server
     this.socketService
       .listenEvent('messageHistory')
       .subscribe((messageHistory: any[]) => {
@@ -99,78 +92,85 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
         this.messages = messageHistory.map((msg) => ({
           username: msg.username || 'Unknown User',
           message: msg.message,
-          imageUrl: msg.imageUrl, // Handle image URLs
-          profilePictureUrl: msg.profilePictureUrl, // Handle profile picture URL
+          imageUrl: msg.imageUrl,
+          profilePictureUrl: msg.profilePictureUrl,
+          userId: msg.userId,
           timestamp: new Date(msg.timestamp).toLocaleString(),
         }));
         this.cdr.detectChanges();
       });
 
-    // Listening to new incoming messages
     this.socketService.listenEvent('message').subscribe((message: any) => {
       console.log('Message received from server: ', message);
       this.messages.push({
         username: message.username || 'Unknown User',
         message: message.message,
-        imageUrl: message.imageUrl, // Handle image URLs
-        profilePictureUrl: message.profilePictureUrl, // Handle profile picture URL
+        imageUrl: message.imageUrl,
+        profilePictureUrl: message.profilePictureUrl,
+        userId: message.userId,
         timestamp: new Date(message.timestamp).toLocaleString(),
       });
       this.cdr.detectChanges();
     });
 
-    // Listening to disconnect events
+    this.socketService
+      .listenEvent('profilePictureUpdated')
+      .subscribe((data: any) => {
+        console.log('Profile picture updated for user:', data.userId);
+
+        this.messages.forEach((msg) => {
+          if (msg.userId === data.userId) {
+            msg.profilePictureUrl = data.profilePictureUrl;
+          }
+        });
+        this.cdr.detectChanges();
+      });
+
     this.socketService.listenEvent('disconnect').subscribe(() => {
       console.log('Socket disconnected');
     });
   }
 
-  // Handle channel selection and joining
   onChannelSelect(channelId: number): void {
     this.selectedChannel = channelId;
 
-    // Clear previous messages (client-side) only if this is a new channel
     this.messages = [];
 
-    // Fetch and load previous chat history
     if (this.groupId && this.selectedChannel) {
       this.socketService.emitEvent('joinChannel', {
         groupId: this.groupId,
         channel: this.selectedChannel,
       });
 
-      // Wait for message history response from the server
-      this.socketService.listenEvent('messageHistory').subscribe((history: any[]) => {
-        console.log('Received message history:', history);
+      this.socketService
+        .listenEvent('messageHistory')
+        .subscribe((history: any[]) => {
+          console.log('Received message history:', history);
 
-        this.messages = history.map((msg) => ({
-          username: msg.username || 'Unknown User',
-          message: msg.message,
-          imageUrl: msg.imageUrl,
-          profilePictureUrl: msg.profilePictureUrl,
-          timestamp: new Date(msg.timestamp).toLocaleString(),
-        }));
+          this.messages = history.map((msg) => ({
+            username: msg.username || 'Unknown User',
+            message: msg.message,
+            imageUrl: msg.imageUrl,
+            profilePictureUrl: msg.profilePictureUrl,
+            timestamp: new Date(msg.timestamp).toLocaleString(),
+            userId: msg.userId
+          }));
 
-        // Append the messages to the chat view
-        this.cdr.detectChanges();
-      });
+          this.cdr.detectChanges();
+        });
     }
   }
 
-
-  // Handle file selection for image upload
   onFileSelected(event: any): void {
-    this.selectedFile = event.target.files[0]; // Get the selected file
+    this.selectedFile = event.target.files[0];
   }
 
-  // Send text or image message
   sendMessage(): void {
     if (this.newMessage.trim() || this.selectedFile) {
       let token: string | null = '';
 
-      // Check if code is running in the browser
       if (isPlatformBrowser(this.platformId)) {
-        token = localStorage.getItem('token'); // Get JWT token from localStorage only in the browser
+        token = localStorage.getItem('token');
       }
 
       const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
@@ -179,31 +179,28 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
         const formData = new FormData();
         formData.append('chatImage', this.selectedFile);
 
-        // Upload image to server and send message with imageUrl
         this.socketService.uploadImage(formData).subscribe((response: any) => {
           this.socketService.emitEvent('message', {
             groupId: this.groupId,
             channel: this.selectedChannel,
             message: this.newMessage,
-            imageUrl: response.imageUrl, // Include uploaded image URL
+            imageUrl: response.imageUrl,
           });
           this.newMessage = '';
-          this.selectedFile = undefined; // Reset after upload
+          this.selectedFile = undefined;
         });
       } else {
-        // Send message without image
         this.socketService.emitEvent('message', {
           groupId: this.groupId,
           channel: this.selectedChannel,
           message: this.newMessage,
-          imageUrl: '', // No image
+          imageUrl: '',
         });
         this.newMessage = '';
       }
     }
   }
 
-  // Peer.js for voice and video chat
   initializePeer(): void {
     console.log('Initializing Peer...');
     this.peer = new Peer();
@@ -218,32 +215,31 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
         .getUserMedia({ video: true, audio: true })
         .then((stream) => {
           this.localVideoStream = stream;
-          this.displayVideo('local-video', stream); // Display local video
+          this.displayVideo('local-video', stream);
 
-          call.answer(stream); // Answer the call with our local stream
+          call.answer(stream);
 
           call.on('stream', (remoteStream: MediaStream) => {
             this.remoteVideoStream = remoteStream;
-            this.displayVideo('remote-video', remoteStream); // Display remote video
+            this.displayVideo('remote-video', remoteStream);
           });
         });
     });
   }
 
-  // Start a video call to peer with ID '1'
   startCall(): void {
     if (this.remotePeerId) {
       navigator.mediaDevices
         .getUserMedia({ video: true, audio: true })
         .then((stream) => {
           this.localVideoStream = stream;
-          this.displayVideo('local-video', stream); // Display local video
+          this.displayVideo('local-video', stream);
 
           this.currentCall = this.peer.call(this.remotePeerId, stream);
 
           this.currentCall.on('stream', (remoteStream: MediaStream) => {
             this.remoteVideoStream = remoteStream;
-            this.displayVideo('remote-video', remoteStream); // Display remote video
+            this.displayVideo('remote-video', remoteStream);
           });
 
           this.currentCall.on('error', (err) => {
@@ -260,7 +256,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // Play the video stream
   displayVideo(elementId: string, stream: MediaStream): void {
     const videoElement = document.getElementById(elementId) as HTMLVideoElement;
     if (videoElement) {
@@ -269,7 +264,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // End the current video call
   endCall(): void {
     if (this.currentCall) {
       this.currentCall.close();
@@ -285,25 +279,23 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
-  // Fetch the chat image from the backend
   getChatImageUrl(imageUrl: string | undefined): string {
     if (imageUrl && imageUrl !== '') {
-      // Serve chat images from the backend server (localhost:3000/uploads/)
       return `http://localhost:3000${imageUrl}`;
     }
-    return ''; // Return an empty string or add a placeholder URL
+    return '';
   }
 
-  // Fetch the profile image from the frontend assets folder
   getProfileImageUrl(profilePictureUrl: string | undefined): string {
     if (profilePictureUrl && profilePictureUrl !== '') {
-      // Serve profile pictures from the assets (frontend at localhost:4200)
-      return `http://localhost:4200${profilePictureUrl}`;
+      // Serve profile pictures from the backend server (localhost:3000)
+      return `http://localhost:3000${profilePictureUrl}`;
     } else {
-      // If no profile picture URL, use the default one from assets
-      return `http://localhost:4200/assets/default-profile.png`;
+      // Serve default profile picture from backend assets
+      return `http://localhost:3000/assets/default-profile.png`; // Adjust to match backend's port and path
     }
   }
+
 
   goBack(): void {
     this.location.back();

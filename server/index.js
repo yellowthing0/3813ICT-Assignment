@@ -3,7 +3,7 @@ const http = require("http");
 const socketIo = require("socket.io");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const multer = require("multer"); // Multer for file uploads
+const multer = require("multer");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
@@ -47,16 +47,16 @@ const messageSchema = new mongoose.Schema({
   imageUrl: String,
   timestamp: { type: Date, default: Date.now },
   profilePictureUrl: String,
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } // Add this reference to the User model
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, 
 });
-
 
 const Message = mongoose.model("Message", messageSchema);
 
 // Middleware
 app.use(express.json());
 app.use(cors({ origin: "http://localhost:4200" }));
-app.use(express.static("./uploads")); // Serve uploaded files
+app.use(express.static("./uploads")); 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/assets", express.static(path.join(__dirname, "public/assets")));
 
@@ -67,13 +67,13 @@ const authenticateJWT = (req, res, next) => {
   if (token) {
     jwt.verify(token, "your_secret_key", (err, user) => {
       if (err) {
-        return res.sendStatus(403); // Invalid token
+        return res.sendStatus(403); 
       }
       req.user = user;
       next();
     });
   } else {
-    res.sendStatus(401); // No token provided
+    res.sendStatus(401); 
   }
 };
 
@@ -88,8 +88,8 @@ const createTestUser = async () => {
 
     const testUser = new User({
       username: "1",
-      password: "1", // This will be hashed before saving
-      profilePictureUrl: "", // No profile picture for now
+      password: "1", 
+      profilePictureUrl: "", 
     });
 
     await testUser.save();
@@ -143,8 +143,7 @@ app.get(
       if (user && user.profilePictureUrl) {
         res.json({ profilePictureUrl: user.profilePictureUrl });
       } else {
-        // Provide a default profile picture if none exists
-        res.json({ profilePictureUrl: "/assets/default-profile.png" }); // Adjust path as necessary
+        res.json({ profilePictureUrl: "/assets/default-profile.png" }); 
       }
     } catch (error) {
       res.status(500).json({ message: "Server error" });
@@ -192,6 +191,12 @@ app.post(
       );
 
       res.json({ profilePictureUrl: user.profilePictureUrl });
+
+      // Emit to all clients that the profile picture has been updated
+      io.emit('profilePictureUpdated', {
+        userId: user._id,
+        profilePictureUrl: user.profilePictureUrl,
+      });
     } catch (error) {
       res.status(500).json({ message: "Server error" });
     }
@@ -231,7 +236,7 @@ io.on("connection", (socket) => {
         console.log("JWT authentication failed:", err);
         socket.disconnect();
       } else {
-        socket.userId = decoded.userId; // Store the userId in the socket
+        socket.userId = decoded.userId; 
         console.log(
           `User ID ${socket.userId} authenticated on socket ${socket.id}`
         );
@@ -240,19 +245,15 @@ io.on("connection", (socket) => {
   });
 
   socket.on("joinChannel", async ({ groupId, channel }) => {
-    console.log(`User ${socket.id} joined group ${groupId}, channel ${channel}`);
     socket.join(`${groupId}-${channel}`);
-  
     try {
-      // Fetch existing messages for this group and channel
       const messages = await Message.find({ groupId, channel })
         .sort({ timestamp: 1 })
-        .populate("user", "username") // Populate username from user model
+        .populate("user", "username")
         .exec();
-  
-      // Check if `user` is properly populated for each message
+
       socket.emit("messageHistory", messages.map((m) => ({
-        username: m.user?.username || 'Unknown User', // Add a fallback if user is not populated
+        username: m.user?.username || 'Unknown User',
         message: m.message,
         imageUrl: m.imageUrl,
         profilePictureUrl: m.profilePictureUrl,
@@ -262,46 +263,35 @@ io.on("connection", (socket) => {
       console.error("Error fetching message history:", error);
     }
   });
-  
-  
-
 
   socket.on("message", async ({ groupId, channel, message, imageUrl }) => {
     try {
-      const user = await User.findById(socket.userId); // Fetch the user
-      if (!user) {
-        console.error('User not found');
-        return;
-      }
-  
-      const profilePictureUrl = user.profilePictureUrl || "/assets/default-profile.png";
-      const username = user.username || "Unknown User";
-  
-      // Save the new message in the database
+      const user = await User.findById(socket.userId);
+      const profilePictureUrl = user?.profilePictureUrl || "/assets/default-profile.png";
+      const username = user?.username || "Unknown User"; 
+
       const newMessage = new Message({
         groupId,
         channel,
         message,
         imageUrl,
         profilePictureUrl,
-        user: user._id, // Attach the user ID to the message
+        userId: user._id, 
       });
       await newMessage.save();
-  
-      // Emit the message to the group and channel
+
       io.to(`${groupId}-${channel}`).emit("message", {
-        username,
+        username, 
         message,
         imageUrl,
         profilePictureUrl,
+        userId: user._id, 
         timestamp: new Date(),
       });
     } catch (error) {
       console.error("Error saving message:", error);
     }
   });
-  
-  
 
   socket.on("disconnect", (reason) => {
     console.log(`User ${socket.id} disconnected: ${reason}`);
