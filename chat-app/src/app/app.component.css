@@ -1,0 +1,47 @@
+/* Style for the navbar */
+.navbar {
+  background-color: #333;
+  padding: 1rem;
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 1.5rem;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-links li {
+  display: inline;
+}
+
+.nav-links a {
+  color: white;
+  text-decoration: none;
+  font-size: 1rem;
+}
+
+.nav-links a:hover {
+  text-decoration: underline;
+}
+
+.main {
+  padding: 2rem;
+}
+
+.content {
+  margin-top: 2rem;
+}
+
+.active {
+  text-decoration: underline;
+  font-weight: bold;
+}
+
+/* Reset body margin */
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}

@@ -1,0 +1,33 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha -r ts-node/register 'tests/**/*.spec.ts'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "express-jwt": "^8.4.1",
+    "http": "^0.0.1-security",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.7.0",
+    "multer": "^1.4.5-lts.1",
+    "peer": "^1.0.2",
+    "socket.io": "^4.8.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^5.0.0",
+    "@types/jest": "^29.5.13",
+    "@types/mocha": "^10.0.9",
+    "chai": "^5.1.1",
+    "mocha": "^10.7.3",
+    "supertest": "^7.0.0",
+    "ts-node": "^10.9.2"
+  }
+}
