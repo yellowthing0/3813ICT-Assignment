@@ -18,15 +18,36 @@ export class SocketService {
       .pipe(first((isStable) => isStable))
       .subscribe(() => {
         console.log('Angular app is stable, connecting to the socket...');
-        this.socket.connect(); // Connect to the WebSocket server
+        this.connect(); // Call the connect function to handle JWT emission
       });
+  }
+
+  // Method to connect and authenticate with the JWT token
+  connect() {
+    this.socket.connect(); // Connect to the WebSocket server
+
+    // After connecting, emit the JWT token for authentication
+    this.socket.on('connect', () => {
+      const token = localStorage.getItem('token'); // Get the JWT token from localStorage
+      if (token) {
+        console.log('Emitting JWT token for authentication');
+        this.socket.emit('authenticate', token); // Emit the token for authentication
+      } else {
+        console.error('No token found in localStorage');
+      }
+    });
+
+    // Handle authentication error
+    this.socket.on('auth_error', (error) => {
+      console.error('Authentication error:', error);
+      this.disconnect(); // Disconnect if authentication fails
+    });
   }
 
   // Emit an event to the server
   emitEvent(eventName: string, data: any) {
     this.socket.emit(eventName, data);
   }
-
 
   // Listen for an event from the server
   listenEvent(eventName: string): Observable<any> {

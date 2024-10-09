@@ -244,55 +244,64 @@ io.on("connection", (socket) => {
     socket.join(`${groupId}-${channel}`);
   
     try {
+      // Fetch existing messages for this group and channel
       const messages = await Message.find({ groupId, channel })
         .sort({ timestamp: 1 })
-        .populate("user", "username") // Make sure to populate username from user
+        .populate("user", "username") // Populate username from user model
         .exec();
   
-      socket.emit(
-        "messageHistory",
-        messages.map((m) => ({
-          username: m.user.username, // Include the username
-          message: m.message,
-          imageUrl: m.imageUrl,
-          profilePictureUrl: m.profilePictureUrl,
-          timestamp: m.timestamp,
-        }))
-      );
+      // Check if `user` is properly populated for each message
+      socket.emit("messageHistory", messages.map((m) => ({
+        username: m.user?.username || 'Unknown User', // Add a fallback if user is not populated
+        message: m.message,
+        imageUrl: m.imageUrl,
+        profilePictureUrl: m.profilePictureUrl,
+        timestamp: m.timestamp,
+      })));
     } catch (error) {
       console.error("Error fetching message history:", error);
     }
   });
   
+  
+
 
   socket.on("message", async ({ groupId, channel, message, imageUrl }) => {
     try {
-      const user = await User.findById(socket.userId);
-      const profilePictureUrl =
-        user?.profilePictureUrl || "/assets/default-profile.png";
-      const username = user?.username || "Unknown User"; // Fetch the username
-
+      const user = await User.findById(socket.userId); // Fetch the user
+      if (!user) {
+        console.error('User not found');
+        return;
+      }
+  
+      const profilePictureUrl = user.profilePictureUrl || "/assets/default-profile.png";
+      const username = user.username || "Unknown User";
+  
+      // Save the new message in the database
       const newMessage = new Message({
         groupId,
         channel,
         message,
         imageUrl,
         profilePictureUrl,
+        user: user._id, // Attach the user ID to the message
       });
       await newMessage.save();
-
-      // Emit the message including the username
+  
+      // Emit the message to the group and channel
       io.to(`${groupId}-${channel}`).emit("message", {
-        username, // Include the username in the message data
+        username,
         message,
         imageUrl,
         profilePictureUrl,
-        timestamp: new Date(), // Keep timestamp for backend consistency
+        timestamp: new Date(),
       });
     } catch (error) {
       console.error("Error saving message:", error);
     }
   });
+  
+  
 
   socket.on("disconnect", (reason) => {
     console.log(`User ${socket.id} disconnected: ${reason}`);

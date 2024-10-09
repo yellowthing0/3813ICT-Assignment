@@ -30,7 +30,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   selectedChannel?: number;
   groupId?: number;
   messages: {
-    username: string; // Add username property
+    username: string;
     message: string;
     timestamp: string;
     imageUrl?: string;
@@ -55,7 +55,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     private socketService: SocketService,
     private cdr: ChangeDetectorRef,
     private location: Location,
-    @Inject(PLATFORM_ID) private platformId: Object // Add this line
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   ngOnInit(): void {
@@ -78,21 +78,26 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
 
       let token: string | null = '';
 
-      // Fetch the JWT token from local storage, only if running in the browser
       if (isPlatformBrowser(this.platformId)) {
-        token = localStorage.getItem('token');
+        token = localStorage.getItem('token'); // Retrieve JWT token from localStorage
       }
 
-      // Authenticate the socket connection with the token
-      this.socketService.emitEvent('authenticate', token);
+      if (token) {
+        // Authenticate the socket connection with the token
+        this.socketService.emitEvent('authenticate', token);
+      } else {
+        console.error('No JWT token found for socket authentication');
+      }
     });
 
+
+    // Listening to message history from the server
     this.socketService
       .listenEvent('messageHistory')
       .subscribe((messageHistory: any[]) => {
         console.log('Message history received: ', messageHistory);
         this.messages = messageHistory.map((msg) => ({
-          username: msg.username || 'Unknown User', // Include username, fallback if missing
+          username: msg.username || 'Unknown User',
           message: msg.message,
           imageUrl: msg.imageUrl, // Handle image URLs
           profilePictureUrl: msg.profilePictureUrl, // Handle profile picture URL
@@ -101,10 +106,11 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
         this.cdr.detectChanges();
       });
 
+    // Listening to new incoming messages
     this.socketService.listenEvent('message').subscribe((message: any) => {
       console.log('Message received from server: ', message);
       this.messages.push({
-        username: message.username || 'Unknown User', // Ensure that username is included
+        username: message.username || 'Unknown User',
         message: message.message,
         imageUrl: message.imageUrl, // Handle image URLs
         profilePictureUrl: message.profilePictureUrl, // Handle profile picture URL
@@ -113,6 +119,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       this.cdr.detectChanges();
     });
 
+    // Listening to disconnect events
     this.socketService.listenEvent('disconnect').subscribe(() => {
       console.log('Socket disconnected');
     });
@@ -121,19 +128,35 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   // Handle channel selection and joining
   onChannelSelect(channelId: number): void {
     this.selectedChannel = channelId;
-    this.messages = []; // Clear previous messages
 
-    if (this.selectedChannel === 2) {
-      this.initializePeer(); // Initialize Peer.js for voice and video chat
-    }
+    // Clear previous messages (client-side) only if this is a new channel
+    this.messages = [];
 
+    // Fetch and load previous chat history
     if (this.groupId && this.selectedChannel) {
       this.socketService.emitEvent('joinChannel', {
         groupId: this.groupId,
         channel: this.selectedChannel,
       });
+
+      // Wait for message history response from the server
+      this.socketService.listenEvent('messageHistory').subscribe((history: any[]) => {
+        console.log('Received message history:', history);
+
+        this.messages = history.map((msg) => ({
+          username: msg.username || 'Unknown User',
+          message: msg.message,
+          imageUrl: msg.imageUrl,
+          profilePictureUrl: msg.profilePictureUrl,
+          timestamp: new Date(msg.timestamp).toLocaleString(),
+        }));
+
+        // Append the messages to the chat view
+        this.cdr.detectChanges();
+      });
     }
   }
+
 
   // Handle file selection for image upload
   onFileSelected(event: any): void {
@@ -143,7 +166,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   // Send text or image message
   sendMessage(): void {
     if (this.newMessage.trim() || this.selectedFile) {
-      let token: string | null = null;
+      let token: string | null = '';
 
       // Check if code is running in the browser
       if (isPlatformBrowser(this.platformId)) {
