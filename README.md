@@ -100,7 +100,7 @@ server/
 ├── models/              # Mongoose models (User, Message)
 ├── routes/              # API routes
 ├── tests/               # Backend unit tests (Mocha, Chai)
-├── server.js            # Entry point of the server
+├── index.js            # Entry point of the server
 └── .env                 # Environment variables
 ```
 
