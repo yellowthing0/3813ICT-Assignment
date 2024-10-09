@@ -17,7 +17,7 @@
 
       <!-- Text channel -->
       <div *ngIf="selectedChannel === 1" class="chat-container">
-        <div class="chat-area">
+        <div class="chat-area" #chatArea>
           <div *ngFor="let message of messages" class="chat-message">
             <img
               *ngIf="message.profilePictureUrl"
@@ -37,6 +37,7 @@
             </div>
           </div>
         </div>
+
 
         <!-- Input area -->
         <div class="chat-input-container">

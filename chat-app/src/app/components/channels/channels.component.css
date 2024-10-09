@@ -136,3 +136,14 @@ button {
 button:hover {
   background-color: #0056b3;
 }
+
+.chat-area {
+  height: 400px; /* Set a fixed height for the chat area */
+  overflow-y: auto; /* Allow vertical scrolling for overflowed messages */
+  border: 1px solid #ccc; /* Add a border for visual separation */
+  padding: 10px;
+  background-color: #f9f9f9;
+  margin-bottom: 10px; /* Add some margin before the input */
+  display: flex;
+  flex-direction: column; /* Normal vertical layout */
+}

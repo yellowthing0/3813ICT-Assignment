@@ -15,6 +15,7 @@ import { Location } from '@angular/common';
 import { PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse  } from '@angular/common/http';
+import { AfterViewChecked, ElementRef, ViewChild } from '@angular/core';
 
 @Component({
   selector: 'app-channels',
@@ -24,6 +25,7 @@ import { HttpClient, HttpErrorResponse  } from '@angular/common/http';
   imports: [CommonModule, FormsModule, HttpClientModule],
 })
 export class ChannelsComponent implements OnInit, AfterViewInit {
+  @ViewChild('chatArea') private chatArea!: ElementRef;
   channels = [
     { id: 1, name: 'Text' },
     { id: 2, name: 'Voice/Video' },
@@ -79,6 +81,11 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
   }
 
+  ngAfterViewChecked(): void {
+    this.scrollToBottom();
+  }
+
+
   // Initialize Socket connection and setup event listeners
   initializeSocket(): void {
     console.log('Initializing socket...');
@@ -89,6 +96,14 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     });
 
     this.listenToEvents();
+  }
+
+  private scrollToBottom(): void {
+    try {
+      this.chatArea.nativeElement.scrollTop = this.chatArea.nativeElement.scrollHeight;
+    } catch (err) {
+      console.error('Scroll to bottom failed', err);
+    }
   }
 
   // Fetch users for the group from the server

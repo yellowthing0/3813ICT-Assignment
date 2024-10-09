@@ -21,7 +21,7 @@ body, html {
 /* Optional: Style for the main content */
 main {
   min-height: 100vh;
-  padding: 20px; /* Optional padding for content */
+  padding: 0px; /* Optional padding for content */
 }
 
 button {
