@@ -1,23 +1,25 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
-const mongoose = require('mongoose');
-const multer = require('multer'); // Multer for file uploads
-const path = require('path');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
-
+const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
+const cors = require("cors");
+const mongoose = require("mongoose");
+const multer = require("multer"); // Multer for file uploads
+const path = require("path");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 const app = express();
 const server = http.createServer(app);
 
 // MongoDB connection
-mongoose.connect('mongodb://localhost:27017/chatApp').then(() => {
-  console.log('Connected to MongoDB');
-  createTestUser();  // Create test user when server starts
-}).catch(err => {
-  console.error('MongoDB connection error:', err);
-});
+mongoose
+  .connect("mongodb://localhost:27017/chatApp")
+  .then(() => {
+    console.log("Connected to MongoDB");
+    createTestUser(); // Create test user when server starts
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+  });
 
 // Define User model
 const userSchema = new mongoose.Schema({
@@ -26,8 +28,8 @@ const userSchema = new mongoose.Schema({
   profilePictureUrl: String,
 });
 
-userSchema.pre('save', function (next) {
-  if (!this.isModified('password')) return next();
+userSchema.pre("save", function (next) {
+  if (!this.isModified("password")) return next();
   bcrypt.hash(this.password, 10, (err, hash) => {
     if (err) return next(err);
     this.password = hash;
@@ -35,7 +37,7 @@ userSchema.pre('save', function (next) {
   });
 });
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model("User", userSchema);
 
 // Define Message model
 const messageSchema = new mongoose.Schema({
@@ -43,21 +45,25 @@ const messageSchema = new mongoose.Schema({
   channel: Number,
   message: String,
   imageUrl: String,
-  timestamp: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now },
+  profilePictureUrl: String, // Add profile picture URL here
 });
-const Message = mongoose.model('Message', messageSchema);
+
+const Message = mongoose.model("Message", messageSchema);
 
 // Middleware
 app.use(express.json());
-app.use(cors());
-app.use(express.static('./uploads')); // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(cors({  origin: 'http://localhost:4200' }));
+app.use(express.static("./uploads")); // Serve uploaded files
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 
 // JWT authentication middleware
 const authenticateJWT = (req, res, next) => {
-  const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
+  const token =
+    req.headers.authorization && req.headers.authorization.split(" ")[1];
   if (token) {
-    jwt.verify(token, 'your_secret_key', (err, user) => {
+    jwt.verify(token, "your_secret_key", (err, user) => {
       if (err) {
         return res.sendStatus(403); // Invalid token
       }
@@ -72,114 +78,137 @@ const authenticateJWT = (req, res, next) => {
 // Function to create a test user
 const createTestUser = async () => {
   try {
-    const existingUser = await User.findOne({ username: '1' });
+    const existingUser = await User.findOne({ username: "1" });
     if (existingUser) {
-      console.log('Test user already exists');
+      console.log("Test user already exists");
       return;
     }
 
     const testUser = new User({
-      username: '1',
-      password: '1',  // This will be hashed before saving
-      profilePictureUrl: ''  // No profile picture for now
+      username: "1",
+      password: "1", // This will be hashed before saving
+      profilePictureUrl: "", // No profile picture for now
     });
 
     await testUser.save();
-    console.log('Test user with username and password "1" created successfully');
+    console.log(
+      'Test user with username and password "1" created successfully'
+    );
   } catch (error) {
-    console.error('Error creating test user:', error);
+    console.error("Error creating test user:", error);
   }
 };
 
 // Configure file storage for images using Multer
 const storage = multer.diskStorage({
-  destination: './uploads/',
+  destination: "./uploads/",
   filename: (req, file, cb) => {
-    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
-  }
+    cb(
+      null,
+      file.fieldname + "-" + Date.now() + path.extname(file.originalname)
+    );
+  },
 });
 const upload = multer({ storage: storage });
 
 // Route for user login with JWT
-app.post('/api/login', async (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   try {
     const user = await User.findOne({ username });
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, 'your_secret_key', { expiresIn: '1h' });
+    // Generate JWT token with userId included
+    const token = jwt.sign({ userId: user._id }, "your_secret_key", {
+      expiresIn: "1h",
+    });
     res.json({ token });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 });
+
 
 // Route for fetching the current user's profile picture (Protected)
-app.get('/api/user/:username/profilePicture', authenticateJWT, async (req, res) => {
-  const { username } = req.params;
-  try {
-    const user = await User.findOne({ username });
-    if (user && user.profilePictureUrl) {
-      res.json({ profilePictureUrl: user.profilePictureUrl });
-    } else {
-      res.json({ profilePictureUrl: null }); // No profile picture available
+app.get(
+  "/api/user/:username/profilePicture",
+  authenticateJWT,
+  async (req, res) => {
+    const { username } = req.params;
+    try {
+      const user = await User.findOne({ username });
+      if (user && user.profilePictureUrl) {
+        res.json({ profilePictureUrl: user.profilePictureUrl });
+      } else {
+        // Provide a default profile picture if none exists
+        res.json({ profilePictureUrl: "/assets/default-profile.png" }); // Adjust path as necessary
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
     }
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
   }
-});
+);
 
 // Route for updating user password (Protected)
-app.post('/api/updatePassword', authenticateJWT, async (req, res) => {
+app.post("/api/updatePassword", authenticateJWT, async (req, res) => {
   const { oldPassword, newPassword } = req.body;
 
   try {
     const user = await User.findOne({ _id: req.user.userId });
     if (!user || !(await bcrypt.compare(oldPassword, user.password))) {
-      return res.status(401).json({ message: 'Incorrect current password' });
+      return res.status(401).json({ message: "Incorrect current password" });
     }
 
     // Hash the new password before saving
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
-    res.json({ message: 'Password updated successfully' });
+    res.json({ message: "Password updated successfully" });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 // Route for uploading profile pictures (Protected)
-app.post('/api/updateProfilePicture', authenticateJWT, upload.single('profilePicture'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No file uploaded' });
+app.post(
+  "/api/updateProfilePicture",
+  authenticateJWT,
+  upload.single("profilePicture"),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const profilePictureUrl = `/uploads/${req.file.filename}`;
+
+    try {
+      const user = await User.findOneAndUpdate(
+        { _id: req.user.userId },
+        { profilePictureUrl },
+        { new: true }
+      );
+
+      res.json({ profilePictureUrl: user.profilePictureUrl });
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
+    }
   }
-
-  const profilePictureUrl = `/uploads/${req.file.filename}`;
-
-  try {
-    const user = await User.findOneAndUpdate(
-      { _id: req.user.userId },
-      { profilePictureUrl },
-      { new: true }
-    );
-
-    res.json({ profilePictureUrl: user.profilePictureUrl });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+);
 
 // Route for uploading chat images (Protected)
-app.post('/api/upload', authenticateJWT, upload.single('chatImage'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No file uploaded' });
+app.post(
+  "/api/upload",
+  authenticateJWT,
+  upload.single("chatImage"),
+  (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+    res.json({ imageUrl: `/uploads/${req.file.filename}` });
   }
-  res.json({ imageUrl: `/uploads/${req.file.filename}` });
-});
+);
 
 // Real-time messaging with Socket.io (Optional JWT check if needed)
 const io = socketIo(server, {
@@ -187,52 +216,85 @@ const io = socketIo(server, {
     origin: "http://localhost:4200",
     methods: ["GET", "POST"],
     allowedHeaders: ["Access-Control-Allow-Origin"],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 
-io.on('connection', (socket) => {
-  console.log('User connected: ', socket.id);
+io.on("connection", (socket) => {
+  console.log("User connected: ", socket.id);
 
-  socket.on('joinChannel', async ({ groupId, channel }) => {
-    console.log(`User ${socket.id} joined group ${groupId}, channel ${channel}`);
+  // Handle setting the userId on socket connect, based on the JWT token
+  socket.on("authenticate", (token) => {
+    jwt.verify(token, "your_secret_key", async (err, decoded) => {
+      if (err) {
+        console.log("JWT authentication failed:", err);
+        socket.disconnect();
+      } else {
+        socket.userId = decoded.userId; // Store the userId in the socket
+        console.log(
+          `User ID ${socket.userId} authenticated on socket ${socket.id}`
+        );
+      }
+    });
+  });
+
+  socket.on("joinChannel", async ({ groupId, channel }) => {
+    console.log(
+      `User ${socket.id} joined group ${groupId}, channel ${channel}`
+    );
     socket.join(`${groupId}-${channel}`);
 
     try {
-      const messages = await Message.find({ groupId, channel }).sort({ timestamp: 1 }).exec();
-      socket.emit('messageHistory', messages.map(m => ({
-        message: m.message,
-        imageUrl: m.imageUrl,
-        timestamp: m.timestamp
-      })));
+      const messages = await Message.find({ groupId, channel })
+        .sort({ timestamp: 1 })
+        .exec();
+      socket.emit(
+        "messageHistory",
+        messages.map((m) => ({
+          message: m.message,
+          imageUrl: m.imageUrl,
+          profilePictureUrl: m.profilePictureUrl, // Include the profile picture
+          timestamp: m.timestamp,
+        }))
+      );
     } catch (error) {
-      console.error('Error fetching message history:', error);
+      console.error("Error fetching message history:", error);
     }
   });
 
-  socket.on('message', async ({ groupId, channel, message, imageUrl }) => {
-    console.log(`Message received in group ${groupId}, channel ${channel}:`, message, imageUrl);
-
+  socket.on("message", async ({ groupId, channel, message, imageUrl }) => {
     try {
-      const newMessage = new Message({ groupId, channel, message, imageUrl });
-      await newMessage.save();
+      // Fetch the user based on the stored userId in the socket object
+      const user = await User.findById(socket.userId);
+      const profilePictureUrl =
+        user?.profilePictureUrl || "/assets/default-profile.png";
 
-      io.to(`${groupId}-${channel}`).emit('message', {
+      const newMessage = new Message({
+        groupId,
+        channel,
         message,
         imageUrl,
-        timestamp: new Date()
+        profilePictureUrl, // Add the profile picture URL to the message
+      });
+      await newMessage.save();
+
+      io.to(`${groupId}-${channel}`).emit("message", {
+        message,
+        imageUrl,
+        profilePictureUrl, // Ensure it's sent to clients
+        timestamp: new Date(),
       });
     } catch (error) {
-      console.error('Error saving message:', error);
+      console.error("Error saving message:", error);
     }
   });
 
-  socket.on('disconnect', (reason) => {
+  socket.on("disconnect", (reason) => {
     console.log(`User ${socket.id} disconnected: ${reason}`);
   });
 });
 
 // Start the server
 server.listen(3000, () => {
-  console.log('Server is running on port 3000');
+  console.log("Server is running on port 3000");
 });

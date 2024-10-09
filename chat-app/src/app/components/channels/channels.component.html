@@ -16,16 +16,27 @@
   <div *ngIf="selectedChannel === 1" class="chat-container">
     <div class="chat-area">
       <div *ngFor="let message of messages" class="chat-message">
+        <!-- Profile Picture -->
+        <img
+          *ngIf="message.profilePictureUrl"
+          [src]="getProfileImageUrl(message.profilePictureUrl)"
+          alt="User Profile"
+          width="40"
+          height="40"
+          class="profile-picture"
+        />
+        <!-- Chat Message and Timestamp -->
         <strong>{{ message.timestamp }}:</strong>
         <span>{{ message.message }}</span>
+        <!-- Chat Image (optional) -->
         <img
           *ngIf="message.imageUrl"
-          [src]="getImageUrl(message.imageUrl)"
+          [src]="getChatImageUrl(message.imageUrl)"
           alt="Chat Image"
           width="100"
         />
-      </div>
-    </div>
+      </div> <!-- Closing this chat-message div properly -->
+    </div> <!-- Closing chat-area div properly -->
 
     <!-- Send message input -->
     <div class="chat-input-container">
@@ -37,7 +48,7 @@
       />
       <button (click)="sendMessage()" class="send-button">Send</button>
     </div>
-  </div>
+  </div> <!-- Closing chat-container div properly -->
 
   <!-- Video chat controls -->
   <div *ngIf="selectedChannel === 2" class="video-chat-container">
@@ -47,7 +58,7 @@
     <div class="video-stream" id="local-video-container">
       <h4>Local Video</h4>
       <video id="local-video" autoplay muted playsinline></video>
-    </div>
+    </div> <!-- Closing video-stream div properly -->
 
     <!-- Controls for starting and ending calls -->
     <button (click)="startCall()">Start Video Call</button>

@@ -1,4 +1,10 @@
-import { ChangeDetectorRef, Component, OnInit, AfterViewInit } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  OnInit,
+  AfterViewInit,
+  Inject,
+} from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -6,6 +12,8 @@ import { HttpClientModule, HttpHeaders } from '@angular/common/http';
 import { SocketService } from '../../services/socket.service';
 import Peer, { MediaConnection } from 'peerjs';
 import { Location } from '@angular/common';
+import { PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 
 @Component({
   selector: 'app-channels',
@@ -17,11 +25,16 @@ import { Location } from '@angular/common';
 export class ChannelsComponent implements OnInit, AfterViewInit {
   channels = [
     { id: 1, name: 'Text' },
-    { id: 2, name: 'Voice/Video' }
+    { id: 2, name: 'Voice/Video' },
   ];
   selectedChannel?: number;
   groupId?: number;
-  messages: { message: string, timestamp: string, imageUrl?: string }[] = []; // Handle images
+  messages: {
+    message: string;
+    timestamp: string;
+    imageUrl?: string;
+    profilePictureUrl?: string;
+  }[] = []; // Include profilePictureUrl
   newMessage = '';
   selectedFile?: File; // For image upload
 
@@ -40,7 +53,8 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     private route: ActivatedRoute,
     private socketService: SocketService,
     private cdr: ChangeDetectorRef,
-    private location: Location
+    private location: Location,
+    @Inject(PLATFORM_ID) private platformId: Object // Add this line
   ) {}
 
   ngOnInit(): void {
@@ -58,29 +72,44 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   initializeSocket(): void {
     console.log('Initializing socket...');
 
-    this.socketService.listenEvent('messageHistory').subscribe((messageHistory: any[]) => {
-      console.log('Message history received: ', messageHistory);
-      this.messages = messageHistory.map((msg) => ({
-        message: msg.message,
-        imageUrl: msg.imageUrl, // Handle image URLs
-        timestamp: new Date(msg.timestamp).toLocaleString()
-      }));
-      this.cdr.detectChanges();
+    this.socketService.listenEvent('connect').subscribe(() => {
+      console.log('Socket connected');
+
+      let token: string | null = '';
+
+      // Fetch the JWT token from local storage, only if running in the browser
+      if (isPlatformBrowser(this.platformId)) {
+        token = localStorage.getItem('token');
+      }
+
+      // Authenticate the socket connection with the token
+      this.socketService.emitEvent('authenticate', token);
     });
+
+    this.socketService
+      .listenEvent('messageHistory')
+      .subscribe((messageHistory: any[]) => {
+        console.log('Message history received: ', messageHistory);
+        this.messages = messageHistory.map((msg) => ({
+          message: msg.message,
+          imageUrl: msg.imageUrl, // Handle image URLs
+          profilePictureUrl: msg.profilePictureUrl, // Handle profile picture URL
+          timestamp: new Date(msg.timestamp).toLocaleString(),
+        }));
+        this.cdr.detectChanges();
+      });
 
     this.socketService.listenEvent('message').subscribe((message: any) => {
       console.log('Message received from server: ', message);
       this.messages.push({
         message: message.message,
         imageUrl: message.imageUrl, // Handle image URLs
-        timestamp: new Date(message.timestamp).toLocaleString()
+        profilePictureUrl: message.profilePictureUrl, // Handle profile picture URL
+        timestamp: new Date(message.timestamp).toLocaleString(),
       });
       this.cdr.detectChanges();
     });
 
-    this.socketService.listenEvent('connect').subscribe(() => {
-      console.log('Socket connected');
-    });
     this.socketService.listenEvent('disconnect').subscribe(() => {
       console.log('Socket disconnected');
     });
@@ -98,7 +127,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     if (this.groupId && this.selectedChannel) {
       this.socketService.emitEvent('joinChannel', {
         groupId: this.groupId,
-        channel: this.selectedChannel
+        channel: this.selectedChannel,
       });
     }
   }
@@ -111,8 +140,14 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   // Send text or image message
   sendMessage(): void {
     if (this.newMessage.trim() || this.selectedFile) {
-      const token = localStorage.getItem('token'); // Get JWT token from localStorage
-      const headers = new HttpHeaders({ 'Authorization': `Bearer ${token}` });
+      let token: string | null = null;
+
+      // Check if code is running in the browser
+      if (isPlatformBrowser(this.platformId)) {
+        token = localStorage.getItem('token'); // Get JWT token from localStorage only in the browser
+      }
+
+      const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
 
       if (this.selectedFile) {
         const formData = new FormData();
@@ -124,7 +159,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
             groupId: this.groupId,
             channel: this.selectedChannel,
             message: this.newMessage,
-            imageUrl: response.imageUrl // Include uploaded image URL
+            imageUrl: response.imageUrl, // Include uploaded image URL
           });
           this.newMessage = '';
           this.selectedFile = undefined; // Reset after upload
@@ -135,7 +170,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
           groupId: this.groupId,
           channel: this.selectedChannel,
           message: this.newMessage,
-          imageUrl: '' // No image
+          imageUrl: '', // No image
         });
         this.newMessage = '';
       }
@@ -153,44 +188,50 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     });
 
     this.peer.on('call', (call) => {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
-        this.localVideoStream = stream;
-        this.displayVideo('local-video', stream); // Display local video
+      navigator.mediaDevices
+        .getUserMedia({ video: true, audio: true })
+        .then((stream) => {
+          this.localVideoStream = stream;
+          this.displayVideo('local-video', stream); // Display local video
 
-        call.answer(stream); // Answer the call with our local stream
+          call.answer(stream); // Answer the call with our local stream
 
-        call.on('stream', (remoteStream: MediaStream) => {
-          this.remoteVideoStream = remoteStream;
-          this.displayVideo('remote-video', remoteStream); // Display remote video
+          call.on('stream', (remoteStream: MediaStream) => {
+            this.remoteVideoStream = remoteStream;
+            this.displayVideo('remote-video', remoteStream); // Display remote video
+          });
         });
-      });
     });
   }
 
   // Start a video call to peer with ID '1'
   startCall(): void {
-    if (this.remotePeerId) { // Always '1' in this case
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
-        this.localVideoStream = stream;
-        this.displayVideo('local-video', stream); // Display local video
+    if (this.remotePeerId) {
+      // Always '1' in this case
+      navigator.mediaDevices
+        .getUserMedia({ video: true, audio: true })
+        .then((stream) => {
+          this.localVideoStream = stream;
+          this.displayVideo('local-video', stream); // Display local video
 
-        this.currentCall = this.peer.call(this.remotePeerId, stream);
+          this.currentCall = this.peer.call(this.remotePeerId, stream);
 
-        this.currentCall.on('stream', (remoteStream: MediaStream) => {
-          this.remoteVideoStream = remoteStream;
-          this.displayVideo('remote-video', remoteStream); // Display remote video
+          this.currentCall.on('stream', (remoteStream: MediaStream) => {
+            this.remoteVideoStream = remoteStream;
+            this.displayVideo('remote-video', remoteStream); // Display remote video
+          });
+
+          this.currentCall.on('error', (err) => {
+            console.error('Error during call:', err);
+          });
+
+          this.currentCall.on('close', () => {
+            console.log('Call ended');
+          });
+        })
+        .catch((error) => {
+          console.error('Error accessing media devices:', error);
         });
-
-        this.currentCall.on('error', (err) => {
-          console.error('Error during call:', err);
-        });
-
-        this.currentCall.on('close', () => {
-          console.log('Call ended');
-        });
-      }).catch((error) => {
-        console.error('Error accessing media devices:', error);
-      });
     }
   }
 
@@ -211,17 +252,32 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     }
 
     if (this.localVideoStream) {
-      this.localVideoStream.getTracks().forEach(track => track.stop());
+      this.localVideoStream.getTracks().forEach((track) => track.stop());
     }
 
     if (this.remoteVideoStream) {
-      this.remoteVideoStream.getTracks().forEach(track => track.stop());
+      this.remoteVideoStream.getTracks().forEach((track) => track.stop());
     }
   }
 
-  // Get full image URL for displaying chat images
-  getImageUrl(imageUrl: string): string {
-    return `http://localhost:3000${imageUrl}`; // Load image from backend server
+  // Fetch the chat image from the backend
+  getChatImageUrl(imageUrl: string | undefined): string {
+    if (imageUrl && imageUrl !== '') {
+      // Serve chat images from the backend server (localhost:3000/uploads/)
+      return `http://localhost:3000${imageUrl}`;
+    }
+    return ''; // Return an empty string or add a placeholder URL
+  }
+
+  // Fetch the profile image from the frontend assets folder
+  getProfileImageUrl(profilePictureUrl: string | undefined): string {
+    if (profilePictureUrl && profilePictureUrl !== '') {
+      // Serve profile pictures from the assets (frontend at localhost:4200)
+      return `http://localhost:4200/assets/default-profile.png`;
+    } else {
+      // If no profile picture URL, use the default one from assets
+      return `http://localhost:4200/assets/default-profile.png`;
+    }
   }
 
   goBack(): void {
