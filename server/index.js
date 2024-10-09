@@ -46,17 +46,19 @@ const messageSchema = new mongoose.Schema({
   message: String,
   imageUrl: String,
   timestamp: { type: Date, default: Date.now },
-  profilePictureUrl: String, // Add profile picture URL here
+  profilePictureUrl: String,
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } // Add this reference to the User model
 });
+
 
 const Message = mongoose.model("Message", messageSchema);
 
 // Middleware
 app.use(express.json());
-app.use(cors({  origin: 'http://localhost:4200' }));
+app.use(cors({ origin: "http://localhost:4200" }));
 app.use(express.static("./uploads")); // Serve uploaded files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
+app.use("/assets", express.static(path.join(__dirname, "public/assets")));
 
 // JWT authentication middleware
 const authenticateJWT = (req, res, next) => {
@@ -129,7 +131,6 @@ app.post("/api/login", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 // Route for fetching the current user's profile picture (Protected)
 app.get(
@@ -239,21 +240,22 @@ io.on("connection", (socket) => {
   });
 
   socket.on("joinChannel", async ({ groupId, channel }) => {
-    console.log(
-      `User ${socket.id} joined group ${groupId}, channel ${channel}`
-    );
+    console.log(`User ${socket.id} joined group ${groupId}, channel ${channel}`);
     socket.join(`${groupId}-${channel}`);
-
+  
     try {
       const messages = await Message.find({ groupId, channel })
         .sort({ timestamp: 1 })
+        .populate("user", "username") // Make sure to populate username from user
         .exec();
+  
       socket.emit(
         "messageHistory",
         messages.map((m) => ({
+          username: m.user.username, // Include the username
           message: m.message,
           imageUrl: m.imageUrl,
-          profilePictureUrl: m.profilePictureUrl, // Include the profile picture
+          profilePictureUrl: m.profilePictureUrl,
           timestamp: m.timestamp,
         }))
       );
@@ -261,28 +263,31 @@ io.on("connection", (socket) => {
       console.error("Error fetching message history:", error);
     }
   });
+  
 
   socket.on("message", async ({ groupId, channel, message, imageUrl }) => {
     try {
-      // Fetch the user based on the stored userId in the socket object
       const user = await User.findById(socket.userId);
       const profilePictureUrl =
         user?.profilePictureUrl || "/assets/default-profile.png";
+      const username = user?.username || "Unknown User"; // Fetch the username
 
       const newMessage = new Message({
         groupId,
         channel,
         message,
         imageUrl,
-        profilePictureUrl, // Add the profile picture URL to the message
+        profilePictureUrl,
       });
       await newMessage.save();
 
+      // Emit the message including the username
       io.to(`${groupId}-${channel}`).emit("message", {
+        username, // Include the username in the message data
         message,
         imageUrl,
-        profilePictureUrl, // Ensure it's sent to clients
-        timestamp: new Date(),
+        profilePictureUrl,
+        timestamp: new Date(), // Keep timestamp for backend consistency
       });
     } catch (error) {
       console.error("Error saving message:", error);

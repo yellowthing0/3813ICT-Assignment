@@ -30,11 +30,12 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   selectedChannel?: number;
   groupId?: number;
   messages: {
+    username: string; // Add username property
     message: string;
     timestamp: string;
     imageUrl?: string;
     profilePictureUrl?: string;
-  }[] = []; // Include profilePictureUrl
+  }[] = [];
   newMessage = '';
   selectedFile?: File; // For image upload
 
@@ -91,6 +92,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
       .subscribe((messageHistory: any[]) => {
         console.log('Message history received: ', messageHistory);
         this.messages = messageHistory.map((msg) => ({
+          username: msg.username || 'Unknown User', // Include username, fallback if missing
           message: msg.message,
           imageUrl: msg.imageUrl, // Handle image URLs
           profilePictureUrl: msg.profilePictureUrl, // Handle profile picture URL
@@ -102,6 +104,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     this.socketService.listenEvent('message').subscribe((message: any) => {
       console.log('Message received from server: ', message);
       this.messages.push({
+        username: message.username || 'Unknown User', // Ensure that username is included
         message: message.message,
         imageUrl: message.imageUrl, // Handle image URLs
         profilePictureUrl: message.profilePictureUrl, // Handle profile picture URL
@@ -207,7 +210,6 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   // Start a video call to peer with ID '1'
   startCall(): void {
     if (this.remotePeerId) {
-      // Always '1' in this case
       navigator.mediaDevices
         .getUserMedia({ video: true, audio: true })
         .then((stream) => {
@@ -273,7 +275,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   getProfileImageUrl(profilePictureUrl: string | undefined): string {
     if (profilePictureUrl && profilePictureUrl !== '') {
       // Serve profile pictures from the assets (frontend at localhost:4200)
-      return `http://localhost:4200/assets/default-profile.png`;
+      return `http://localhost:4200${profilePictureUrl}`;
     } else {
       // If no profile picture URL, use the default one from assets
       return `http://localhost:4200/assets/default-profile.png`;
