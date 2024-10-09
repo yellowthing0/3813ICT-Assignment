@@ -216,7 +216,7 @@ app.post(
   }
 );
 
-// Add this to your server.js
+// this to your server.js
 app.get("/api/groups/:groupId/users", authenticateJWT, async (req, res) => {
   const { groupId } = req.params;
   try {

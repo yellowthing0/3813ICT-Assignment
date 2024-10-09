@@ -38,11 +38,11 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     timestamp: string;
     imageUrl?: string;
     profilePictureUrl?: string;
-    userId?: string; // Add userId property here
+    userId?: string;
   }[] = [];
   newMessage = '';
   selectedFile?: File; // For image upload
-  selectedImageUrl: string | undefined; // Add this property
+  selectedImageUrl: string | undefined;
   errorMessage = ''; // Error message handling
   groupUsers: any[] = []; // Array to store users in the group
 
