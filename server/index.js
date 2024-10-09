@@ -47,7 +47,7 @@ const messageSchema = new mongoose.Schema({
   imageUrl: String,
   timestamp: { type: Date, default: Date.now },
   profilePictureUrl: String,
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Reference to the User model
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Reference to the User model
 });
 
 const Message = mongoose.model("Message", messageSchema);
@@ -61,11 +61,12 @@ app.use("/assets", express.static(path.join(__dirname, "public/assets")));
 
 // JWT authentication middleware
 const authenticateJWT = (req, res, next) => {
-  const token = req.headers.authorization && req.headers.authorization.split(" ")[1];
+  const token =
+    req.headers.authorization && req.headers.authorization.split(" ")[1];
   if (token) {
     jwt.verify(token, "your_secret_key", (err, user) => {
       if (err) {
-        return res.sendStatus(403); 
+        return res.sendStatus(403);
       }
       req.user = user;
       next();
@@ -86,12 +87,14 @@ const createTestUser = async () => {
 
     const testUser = new User({
       username: "1",
-      password: "1", 
-      profilePictureUrl: "", 
+      password: "1",
+      profilePictureUrl: "",
     });
 
     await testUser.save();
-    console.log('Test user with username and password "1" created successfully');
+    console.log(
+      'Test user with username and password "1" created successfully'
+    );
   } catch (error) {
     console.error("Error creating test user:", error);
   }
@@ -101,7 +104,10 @@ const createTestUser = async () => {
 const storage = multer.diskStorage({
   destination: "./uploads/",
   filename: (req, file, cb) => {
-    cb(null, file.fieldname + "-" + Date.now() + path.extname(file.originalname));
+    cb(
+      null,
+      file.fieldname + "-" + Date.now() + path.extname(file.originalname)
+    );
   },
 });
 const upload = multer({ storage: storage });
@@ -126,19 +132,23 @@ app.post("/api/login", async (req, res) => {
 });
 
 // Route for fetching the current user's profile picture (Protected)
-app.get("/api/user/:username/profilePicture", authenticateJWT, async (req, res) => {
-  const { username } = req.params;
-  try {
-    const user = await User.findOne({ username });
-    if (user && user.profilePictureUrl) {
-      res.json({ profilePictureUrl: user.profilePictureUrl });
-    } else {
-      res.json({ profilePictureUrl: "/assets/default-profile.png" });
+app.get(
+  "/api/user/:username/profilePicture",
+  authenticateJWT,
+  async (req, res) => {
+    const { username } = req.params;
+    try {
+      const user = await User.findOne({ username });
+      if (user && user.profilePictureUrl) {
+        res.json({ profilePictureUrl: user.profilePictureUrl });
+      } else {
+        res.json({ profilePictureUrl: "/assets/default-profile.png" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
     }
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
   }
-});
+);
 
 // Route for updating user password (Protected)
 app.post("/api/updatePassword", authenticateJWT, async (req, res) => {
@@ -161,38 +171,63 @@ app.post("/api/updatePassword", authenticateJWT, async (req, res) => {
 });
 
 // Route for uploading profile pictures (Protected)
-app.post("/api/updateProfilePicture", authenticateJWT, upload.single("profilePicture"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "No file uploaded" });
+app.post(
+  "/api/updateProfilePicture",
+  authenticateJWT,
+  upload.single("profilePicture"),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const profilePictureUrl = `/uploads/${req.file.filename}`;
+
+    try {
+      const user = await User.findOneAndUpdate(
+        { _id: req.user.userId },
+        { profilePictureUrl },
+        { new: true }
+      );
+
+      res.json({ profilePictureUrl: user.profilePictureUrl });
+
+      // Emit to all clients that the profile picture has been updated
+      io.emit("profilePictureUpdated", {
+        userId: user._id,
+        profilePictureUrl: user.profilePictureUrl,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
+    }
   }
-
-  const profilePictureUrl = `/uploads/${req.file.filename}`;
-
-  try {
-    const user = await User.findOneAndUpdate(
-      { _id: req.user.userId },
-      { profilePictureUrl },
-      { new: true }
-    );
-
-    res.json({ profilePictureUrl: user.profilePictureUrl });
-
-    // Emit to all clients that the profile picture has been updated
-    io.emit('profilePictureUpdated', {
-      userId: user._id,
-      profilePictureUrl: user.profilePictureUrl,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
+);
 
 // Route for uploading chat images (Protected)
-app.post("/api/upload", authenticateJWT, upload.single("chatImage"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "No file uploaded" });
+app.post(
+  "/api/upload",
+  authenticateJWT,
+  upload.single("chatImage"),
+  (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+    res.json({ imageUrl: `/uploads/${req.file.filename}` });
   }
-  res.json({ imageUrl: `/uploads/${req.file.filename}` });
+);
+
+// Add this to your server.js
+app.get("/api/groups/:groupId/users", authenticateJWT, async (req, res) => {
+  const { groupId } = req.params;
+  try {
+    // Fetch users for the given groupId. Replace this with your actual logic to fetch users in a group.
+    const users = await User.find({ groups: groupId }).select(
+      "username profilePictureUrl"
+    );
+    res.json(users);
+  } catch (error) {
+    console.error("Error fetching group users:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 // Real-time messaging with Socket.io
@@ -216,7 +251,9 @@ io.on("connection", (socket) => {
         socket.disconnect(); // Disconnect the socket if authentication fails
       } else {
         socket.userId = decoded.userId; // Store the userId in the socket
-        console.log(`User ID ${socket.userId} authenticated on socket ${socket.id}`);
+        console.log(
+          `User ID ${socket.userId} authenticated on socket ${socket.id}`
+        );
       }
     });
   });
@@ -224,12 +261,14 @@ io.on("connection", (socket) => {
   // Handle user joining a group and channel
   socket.on("joinChannel", async ({ groupId, channel }) => {
     if (!socket.userId) {
-      console.log('User not authenticated');
+      console.log("User not authenticated");
       return; // Ensure that the user is authenticated before joining a channel
     }
 
-    console.log(`User ${socket.id} (ID: ${socket.userId}) joined group ${groupId}, channel ${channel}`);
-    socket.join(`${groupId}-${channel}`);  // Join the specific group/channel room
+    console.log(
+      `User ${socket.id} (ID: ${socket.userId}) joined group ${groupId}, channel ${channel}`
+    );
+    socket.join(`${groupId}-${channel}`); // Join the specific group/channel room
 
     try {
       // Fetch existing messages for this group and channel
@@ -239,58 +278,73 @@ io.on("connection", (socket) => {
         .exec();
 
       // Send the message history to the user who joined the channel
-      socket.emit("messageHistory", messages.map((m) => ({
-        username: m.user?.username || 'Unknown User',
-        message: m.message,
-        imageUrl: m.imageUrl,
-        profilePictureUrl: m.user?.profilePictureUrl || '/assets/default-profile.png',
-        timestamp: m.timestamp,
-        userId: m.user?._id || null, // Include userId to handle profile updates
-      })));
+      socket.emit(
+        "messageHistory",
+        messages.map((m) => ({
+          username: m.user?.username || "Unknown User",
+          message: m.message,
+          imageUrl: m.imageUrl,
+          profilePictureUrl:
+            m.user?.profilePictureUrl || "/assets/default-profile.png",
+          timestamp: m.timestamp,
+          userId: m.user?._id || null, // Include userId to handle profile updates
+        }))
+      );
     } catch (error) {
       console.error("Error fetching message history:", error);
     }
   });
 
   // Handle sending a new message
-  socket.on("message", async ({ token, groupId, channel, message, imageUrl }) => {
-    try {
-      const decoded = jwt.verify(token, "your_secret_key"); // Verify the token for each message
-      const user = await User.findById(decoded.userId); // Use the userId from the token
-      if (!user) {
-        console.log('User not found');
-        return;
+  socket.on(
+    "message",
+    async ({ token, groupId, channel, message, imageUrl }) => {
+      try {
+        const decoded = jwt.verify(token, "your_secret_key"); // Verify the token for each message
+        const user = await User.findById(decoded.userId); // Use the userId from the token
+        if (!user) {
+          console.log("User not found");
+          return;
+        }
+
+        const profilePictureUrl =
+          user.profilePictureUrl || "/assets/default-profile.png";
+        const username = user.username || "Unknown User";
+
+        // Save the new message in the database
+        const newMessage = new Message({
+          groupId,
+          channel,
+          message,
+          imageUrl,
+          profilePictureUrl,
+          user: user._id, // Link the message to the user
+        });
+        await newMessage.save();
+
+        // Broadcast the message to all users in the group/channel
+        io.to(`${groupId}-${channel}`).emit("message", {
+          username,
+          message,
+          imageUrl,
+          profilePictureUrl,
+          userId: user._id,
+          timestamp: new Date(),
+        });
+
+        console.log(
+          "Broadcasting message to group",
+          groupId,
+          "channel",
+          channel,
+          "from user",
+          username
+        );
+      } catch (error) {
+        console.error("Error sending message:", error);
       }
-
-      const profilePictureUrl = user.profilePictureUrl || "/assets/default-profile.png";
-      const username = user.username || "Unknown User";
-
-      // Save the new message in the database
-      const newMessage = new Message({
-        groupId,
-        channel,
-        message,
-        imageUrl,
-        profilePictureUrl,
-        user: user._id, // Link the message to the user
-      });
-      await newMessage.save();
-
-      // Broadcast the message to all users in the group/channel
-      io.to(`${groupId}-${channel}`).emit("message", {
-        username,
-        message,
-        imageUrl,
-        profilePictureUrl,
-        userId: user._id,
-        timestamp: new Date(),
-      });
-
-      console.log("Broadcasting message to group", groupId, "channel", channel, "from user", username);
-    } catch (error) {
-      console.error("Error sending message:", error);
     }
-  });
+  );
 
   // Handle user logout
   socket.on("logout", () => {

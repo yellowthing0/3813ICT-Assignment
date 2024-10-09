@@ -1,6 +1,11 @@
 import { Component, OnInit, Inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { SocketService } from '../../services/socket.service';
 import { isPlatformBrowser } from '@angular/common';
@@ -17,8 +22,10 @@ export class ProfileComponent implements OnInit {
   profileForm: FormGroup;
   passwordForm: FormGroup;
   profilePicturePreview: string | ArrayBuffer | null = null;
-  currentProfilePicture: string = '';  // Stores the current profile picture URL
+  currentProfilePicture: string = ''; // Stores the current profile picture URL
   userId: string = ''; // Initialize userId (you may need to fetch this from JWT or user data)
+  username: string = ''; // Add this property
+  profilePictureUrl: string = 'http://localhost:4200/assets/default-profile.png'; // Add this property with a default value
 
   constructor(
     private fb: FormBuilder,
@@ -27,29 +34,46 @@ export class ProfileComponent implements OnInit {
     @Inject(PLATFORM_ID) private platformId: Object // Inject the platform ID
   ) {
     this.profileForm = this.fb.group({
-      profilePicture: [null]
+      profilePicture: [null],
     });
 
     this.passwordForm = this.fb.group({
       oldPassword: ['', Validators.required],
-      newPassword: ['', [Validators.required, Validators.minLength(6)]]
+      newPassword: ['', [Validators.required, Validators.minLength(6)]],
     });
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
+    // Assume the username is stored in localStorage when the user logs in
+    this.username = localStorage.getItem('username') || ''; // Set the username from localStorage
     this.loadCurrentProfilePicture();
   }
 
+
   // Load the current profile picture on init
-  loadCurrentProfilePicture() {
-    if (isPlatformBrowser(this.platformId)) { // Check if it's running in the browser
-      const token = localStorage.getItem('token');
-      if (token) {
-        this.userId = this.getUserIdFromToken();
-        this.http.get(`http://localhost:3000/api/user/${this.userId}/profilePicture`).subscribe((res: any) => {
-          this.currentProfilePicture = res.profilePictureUrl;
-        });
+  async loadCurrentProfilePicture() {
+    const token = localStorage.getItem('token'); // Retrieve token from localStorage
+    if (token) {
+      const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+      try {
+        const response: any = await this.http
+          .get(
+            `http://localhost:3000/api/user/${this.username}/profilePicture`,
+            { headers }
+          )
+          .toPromise();
+        this.profilePictureUrl =
+          response.profilePictureUrl ||
+          'http://localhost:4200/assets/default-profile.png';
+      } catch (error) {
+        console.error('Error loading profile picture:', error);
+        this.profilePictureUrl =
+          'http://localhost:4200/assets/default-profile.png'; // Fallback to default on error
       }
+    } else {
+      console.error('No token found');
+      this.profilePictureUrl =
+        'http://localhost:4200/assets/default-profile.png'; // Fallback if no token is found
     }
   }
 
@@ -68,7 +92,10 @@ export class ProfileComponent implements OnInit {
 
   updateProfilePicture(): void {
     const formData = new FormData();
-    formData.append('profilePicture', this.profileForm.get('profilePicture')?.value);
+    formData.append(
+      'profilePicture',
+      this.profileForm.get('profilePicture')?.value
+    );
 
     let token = '';
     if (isPlatformBrowser(this.platformId)) {
@@ -79,28 +106,33 @@ export class ProfileComponent implements OnInit {
       Authorization: `Bearer ${token}`, // Include the JWT token in the header
     });
 
-    this.http.post('http://localhost:3000/api/updateProfilePicture', formData, { headers }).subscribe(
-      (response: any) => {
-        console.log('Profile picture updated:', response);
+    this.http
+      .post('http://localhost:3000/api/updateProfilePicture', formData, {
+        headers,
+      })
+      .subscribe(
+        (response: any) => {
+          console.log('Profile picture updated:', response);
 
-        // Update the current profile picture with the new one
-        this.currentProfilePicture = response.profilePictureUrl;
+          // Update the current profile picture with the new one
+          this.currentProfilePicture = response.profilePictureUrl;
 
-        // Emit the change to the chat system
-        this.socketService.emitEvent('profilePictureUpdated', {
-          userId: this.userId,
-          profilePictureUrl: response.profilePictureUrl,
-        });
-      },
-      (error) => {
-        console.error('Error updating profile picture:', error);
-      }
-    );
+          // Emit the change to the chat system
+          this.socketService.emitEvent('profilePictureUpdated', {
+            userId: this.userId,
+            profilePictureUrl: response.profilePictureUrl,
+          });
+        },
+        (error) => {
+          console.error('Error updating profile picture:', error);
+        }
+      );
   }
 
   // Decode JWT manually to get the userId
   getUserIdFromToken(): string {
-    if (isPlatformBrowser(this.platformId)) { // Ensure this runs only in the browser
+    if (isPlatformBrowser(this.platformId)) {
+      // Ensure this runs only in the browser
       const token = localStorage.getItem('token');
       if (token) {
         // JWT tokens have 3 parts separated by dots (header, payload, and signature).
@@ -119,14 +151,19 @@ export class ProfileComponent implements OnInit {
     const oldPassword = this.passwordForm.get('oldPassword')?.value;
     const newPassword = this.passwordForm.get('newPassword')?.value;
 
-    this.http.post('http://localhost:3000/api/updatePassword', { oldPassword, newPassword }).subscribe(
-      (response) => {
-        console.log('Password updated successfully');
-        this.passwordForm.reset(); // Reset the form after successful update
-      },
-      (error) => {
-        console.error('Error updating password:', error);
-      }
-    );
+    this.http
+      .post('http://localhost:3000/api/updatePassword', {
+        oldPassword,
+        newPassword,
+      })
+      .subscribe(
+        (response) => {
+          console.log('Password updated successfully');
+          this.passwordForm.reset(); // Reset the form after successful update
+        },
+        (error) => {
+          console.error('Error updating password:', error);
+        }
+      );
   }
 }

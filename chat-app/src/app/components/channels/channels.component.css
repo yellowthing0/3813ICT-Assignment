@@ -1,61 +1,75 @@
-.chat-container {
+/* Container for the channels */
+.channel-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+/* Left Section: Chat */
+.chat-section {
+  flex: 2; /* Make chat section wider */
+}
+
+/* Right Section: Users and Video Chat */
+.right-section {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  gap: 20px;
 }
 
 /* Chat area */
-.chat-area {
-  height: 400px; /* Set a fixed height for the chat area */
-  overflow-y: auto; /* Allow vertical scrolling for overflowed messages */
-  border: 1px solid #ccc; /* Add a border for visual separation */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  max-height: 500px;
+  overflow-y: auto; /* Enable scrolling if content exceeds container height */
+  border: 1px solid #ccc;
   padding: 10px;
   background-color: #f9f9f9;
-  margin-bottom: 10px; /* Add some margin before the input */
-  display: flex;
-  flex-direction: column; /* Keep messages aligned vertically */
-  justify-content: flex-end; /* Keep the latest messages at the bottom */
 }
 
 /* Individual chat messages */
 .chat-message {
-  padding: 5px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
   background-color: #e1e1e1;
   border-radius: 5px;
   margin-bottom: 5px;
-  max-width: 80%;
-  word-wrap: break-word; /* Ensure long messages wrap properly */
+}
+
+/* Profile pictures */
+.profile-picture {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover; /* Ensure the image fits within the circle */
+}
+
+/* Chat Image */
+.chat-image {
+  max-width: 100px;
+  max-height: 100px;
+  object-fit: contain;
+  border-radius: 5px;
 }
 
 /* Input area */
-.chat-input {
+.chat-input-container {
   display: flex;
-  gap: 10px; /* Add some space between the input and button */
-  align-items: center; /* Align input and button vertically */
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
 }
 
-/* Chat input field */
-.chat-input input {
+.chat-input {
   flex: 1;
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 5px;
 }
-
-/* Send button */
-.chat-input button {
-  padding: 10px 20px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.chat-input button:hover {
-  background-color: #0056b3;
-}
-
 
 .send-button {
   padding: 10px 20px;
@@ -70,68 +84,55 @@
   background-color: #0056b3;
 }
 
-.voice-channel input {
-  margin-right: 10px;
-  padding: 5px;
+/* User list */
+.user-list ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.user-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* Profile pictures for user list */
+.user-profile-pic {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Video chat container */
+.video-chat-container {
   border: 1px solid #ccc;
-  border-radius: 5px;
-}
-
-.voice-channel button {
-  margin-right: 10px;
   padding: 10px;
-  background-color: #28a745;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
+  background-color: #f9f9f9;
 }
 
-.voice-channel button[disabled] {
-  background-color: #ddd;
-  cursor: not-allowed;
+.video-stream {
+  width: 100%;
+  height: 100%;
+  margin-bottom: 10px;
 }
 
-.voice-channel button:hover:not([disabled]) {
-  background-color: #218838;
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 button {
+  padding: 8px 16px;
   background-color: #007bff;
   color: white;
-  padding: 10px 20px;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  margin-top: 10px;
 }
 
 button:hover {
   background-color: #0056b3;
-}
-
-#local-video-container {
-  border: 2px solid transparent;
-  transition: border-color 0.2s ease;
-}
-
-#local-video-container.talking {
-  border-color: green;
-}
-
-.profile-pic {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 10px;
-}
-.message {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.message-content {
-  background-color: #f1f1f1;
-  padding: 10px;
-  border-radius: 5px;
 }

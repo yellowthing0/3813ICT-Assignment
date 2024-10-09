@@ -1,73 +1,86 @@
 <h2>Channels for Group {{ groupId }}</h2>
-<ul>
-  <li *ngFor="let channel of channels">
-    <button (click)="onChannelSelect(channel.id)">
-      {{ channel.name }}
-    </button>
-  </li>
-</ul>
-<button (click)="goBack()">Back</button>
 
-<!-- Chat area -->
-<div *ngIf="selectedChannel">
-  <h3>Chat in Channel {{ selectedChannel }}</h3>
+<div class="channel-container">
+  <!-- Left: Chat Area -->
+  <div class="chat-section">
+    <ul>
+      <li *ngFor="let channel of channels">
+        <button (click)="onChannelSelect(channel.id)">
+          {{ channel.name }}
+        </button>
+      </li>
+    </ul>
 
-  <!-- Text channel -->
-  <div *ngIf="selectedChannel === 1" class="chat-container">
-    <div class="chat-area">
-      <div *ngFor="let message of messages" class="chat-message">
-        <!-- Profile Picture -->
-        <img
-          *ngIf="message.profilePictureUrl"
-          [src]="getProfileImageUrl(message.profilePictureUrl)"
-          alt="User Profile"
-          width="40"
-          height="40"
-          class="profile-picture"
-        />
-        <!-- Chat Message and Username -->
-        <strong>{{ message.username }}:</strong>
-        <!-- Display the username -->
-        <span>{{ message.message }}</span>
-        <!-- Chat Image (optional) -->
-        <img
-          *ngIf="message.imageUrl"
-          [src]="getChatImageUrl(message.imageUrl)"
-          alt="Chat Image"
-          width="100"
-        />
+    <!-- Chat area -->
+    <div *ngIf="selectedChannel" class="chat-wrapper">
+      <h3>Chat in Channel {{ selectedChannel }}</h3>
+
+      <!-- Text channel -->
+      <div *ngIf="selectedChannel === 1" class="chat-container">
+        <div class="chat-area">
+          <div *ngFor="let message of messages" class="chat-message">
+            <img
+              *ngIf="message.profilePictureUrl"
+              [src]="getProfileImageUrl(message.profilePictureUrl)"
+              alt="User Profile"
+              class="profile-picture"
+            />
+            <div class="message-content">
+              <strong>{{ message.username }}:</strong>
+              <span>{{ message.message }}</span>
+              <img
+                *ngIf="message.imageUrl"
+                [src]="getChatImageUrl(message.imageUrl)"
+                alt="Chat Image"
+                class="chat-image"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Input area -->
+        <div class="chat-input-container">
+          <input type="file" (change)="onFileSelected($event)" />
+          <input
+            [(ngModel)]="newMessage"
+            placeholder="Type a message..."
+            class="chat-input"
+          />
+          <button (click)="sendMessage()" class="send-button">Send</button>
+        </div>
       </div>
     </div>
-    <!-- Closing chat-area div properly -->
-
-    <!-- Send message input -->
-    <div class="chat-input-container">
-      <input type="file" (change)="onFileSelected($event)" />
-      <input
-        [(ngModel)]="newMessage"
-        placeholder="Type a message..."
-        class="chat-input"
-      />
-      <button (click)="sendMessage()" class="send-button">Send</button>
-    </div>
   </div>
-  <!-- Closing chat-container div properly -->
 
-  <!-- Video chat controls -->
-  <div *ngIf="selectedChannel === 2" class="video-chat-container">
-    <h3>Video Chat</h3>
-
-    <!-- Video element for local stream -->
-    <div class="video-stream" id="local-video-container">
-      <h4>Local Video</h4>
-      <video id="local-video" autoplay muted playsinline></video>
+  <!-- Right: Users and Video Chat -->
+  <div class="right-section">
+    <!-- User List -->
+    <div class="user-list">
+      <h4>Users in Group</h4>
+      <ul>
+        <li *ngFor="let user of groupUsers">
+          <img
+            [src]="getProfileImageUrl(user.profilePictureUrl)"
+            alt="User Profile"
+            class="user-profile-pic"
+          />
+          {{ user.username }}
+        </li>
+      </ul>
     </div>
-    <!-- Closing video-stream div properly -->
 
-    <!-- Controls for starting and ending calls -->
-    <button (click)="startCall()">Start Video Call</button>
-    <button (click)="endCall()" [disabled]="!currentCall">
-      End Video Call
-    </button>
+    <!-- Video Chat -->
+    <div class="video-chat-container" *ngIf="selectedChannel === 2">
+      <h4>Video Chat</h4>
+      <div class="video-stream">
+        <video id="local-video" autoplay muted playsinline></video>
+      </div>
+      <button (click)="startCall()">Start Video Call</button>
+      <button (click)="endCall()" [disabled]="!currentCall">
+        End Video Call
+      </button>
+    </div>
   </div>
 </div>
+
+<button (click)="goBack()">Back</button>

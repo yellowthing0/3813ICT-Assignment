@@ -14,6 +14,7 @@ import Peer, { MediaConnection } from 'peerjs';
 import { Location } from '@angular/common';
 import { PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { HttpClient, HttpErrorResponse  } from '@angular/common/http';
 
 @Component({
   selector: 'app-channels',
@@ -41,6 +42,7 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
   selectedFile?: File; // For image upload
   selectedImageUrl: string | undefined; // Add this property
   errorMessage = ''; // Error message handling
+  groupUsers: any[] = []; // Array to store users in the group
 
   // Voice and video chat
   peer!: Peer;
@@ -58,12 +60,15 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     private socketService: SocketService,
     private cdr: ChangeDetectorRef,
     private location: Location,
+    private http: HttpClient,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   ngOnInit(): void {
     this.groupId = +this.route.snapshot.paramMap.get('groupId')!;
     console.log('Group ID: ', this.groupId);
+    this.groupId = +this.route.snapshot.paramMap.get('groupId')!;
+    this.fetchGroupUsers(); // Fetch users when component initializes
     this.initializePeer();
   }
 
@@ -84,6 +89,21 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     });
 
     this.listenToEvents();
+  }
+
+  // Fetch users for the group from the server
+  fetchGroupUsers(): void {
+    if (this.groupId) {
+      this.http.get<any[]>(`http://localhost:3000/api/groups/${this.groupId}/users`)
+        .subscribe(
+          (users: any[]) => {
+            this.groupUsers = users; // Store the fetched users in groupUsers array
+          },
+          (error: HttpErrorResponse) => {
+            console.error('Error fetching group users:', error);
+          }
+        );
+    }
   }
 
   // Authenticate socket connection with JWT
@@ -133,6 +153,20 @@ export class ChannelsComponent implements OnInit, AfterViewInit {
     this.socketService.listenEvent('disconnect').subscribe(() => {
       console.log('Socket disconnected');
     });
+
+    this.socketService.listenEvent('groupUsers').subscribe(
+      (users: any[]) => {
+        this.groupUsers = users.map((user) => ({
+          username: user.username,
+          profilePictureUrl:
+            user.profilePictureUrl || '/assets/default-profile.png',
+        }));
+        this.cdr.detectChanges();
+      },
+      (error) => {
+        console.error('Error receiving group users:', error);
+      }
+    );
   }
 
   // Handle received message history
