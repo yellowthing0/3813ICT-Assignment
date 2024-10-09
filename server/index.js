@@ -9,13 +9,13 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const app = express();
 const server = http.createServer(app);
-
+module.exports = app; 
 // MongoDB connection
 mongoose
   .connect("mongodb://localhost:27017/chatApp")
   .then(() => {
     console.log("Connected to MongoDB");
-    createTestUser(); // Create test user when server starts
+    createTestUsers(); // Create test users when server starts
   })
   .catch((err) => {
     console.error("MongoDB connection error:", err);
@@ -76,27 +76,28 @@ const authenticateJWT = (req, res, next) => {
   }
 };
 
-// Function to create a test user
-const createTestUser = async () => {
+// Function to create test users
+const createTestUsers = async () => {
   try {
-    const existingUser = await User.findOne({ username: "1" });
-    if (existingUser) {
-      console.log("Test user already exists");
-      return;
+    const users = [
+      { username: "user", password: "user", profilePictureUrl: "" },
+      { username: "user2", password: "user2", profilePictureUrl: "" },
+      { username: "super", password: "super", profilePictureUrl: "" },
+    ];
+
+    for (const userData of users) {
+      const existingUser = await User.findOne({ username: userData.username });
+      if (existingUser) {
+        console.log(`User ${userData.username} already exists`);
+        continue;
+      }
+
+      const newUser = new User(userData);
+      await newUser.save();
+      console.log(`User ${userData.username} created successfully`);
     }
-
-    const testUser = new User({
-      username: "1",
-      password: "1",
-      profilePictureUrl: "",
-    });
-
-    await testUser.save();
-    console.log(
-      'Test user with username and password "1" created successfully'
-    );
   } catch (error) {
-    console.error("Error creating test user:", error);
+    console.error("Error creating test users:", error);
   }
 };
 

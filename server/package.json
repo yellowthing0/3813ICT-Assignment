@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha -r ts-node/register 'tests/**/*.spec.ts'"
   },
   "keywords": [],
   "author": "",
@@ -20,5 +20,14 @@
     "multer": "^1.4.5-lts.1",
     "peer": "^1.0.2",
     "socket.io": "^4.8.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^5.0.0",
+    "@types/jest": "^29.5.13",
+    "@types/mocha": "^10.0.9",
+    "chai": "^5.1.1",
+    "mocha": "^10.7.3",
+    "supertest": "^7.0.0",
+    "ts-node": "^10.9.2"
   }
 }
